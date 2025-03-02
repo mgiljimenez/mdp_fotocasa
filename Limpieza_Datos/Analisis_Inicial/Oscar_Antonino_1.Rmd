@@ -1,0 +1,81 @@
+---
+title: "Proyecto"
+author: "Óscar"
+date: "2025-02-19"
+output: html_document
+---
+
+```{r setup}
+df = read.csv("fotocasa.csv", sep = ";",  fileEncoding="ISO-8859-1")
+```
+
+```{r}
+df_nuevo = df[, c("URL", "lat", "lng", "municipality", "neighborhood", "zipCode", "ownerType", "ownerId", "creationDate")]
+```
+
+```{r}
+str(df_nuevo)
+```
+
+Sustituimos los datos faltantes por NA y averiguamos si existen dichos datos
+```{r}
+library(dplyr)
+
+df_nuevo <- df_nuevo %>%
+  mutate(across(where(is.character), ~ na_if(., "")))
+
+filas_con_na <- df_nuevo %>%
+  filter(if_any(everything(), is.na))
+
+hay_na <- anyNA(df_nuevo)
+print(hay_na)
+```
+
+Encontramos 
+```{r}
+if (!require("dplyr")) install.packages("dplyr", dependencies = TRUE)
+library(dplyr)
+
+summary(df_nuevo)
+
+missing_counts = sapply(df_nuevo, function(x) sum(is.na(x)))
+
+print(missing_counts)
+```
+
+Estudiamos los valores de la variable "ownerType"
+```{r}
+unique(df_nuevo$ownerType)
+table(df_nuevo$ownerType)
+```
+Averiguamos qué filas tienen los valores faltantes
+```{r}
+# Filtrar las filas donde 'municipality' es NA
+filas_sin_municipio <- df_nuevo[is.na(df_nuevo$municipality), ]
+
+# Mostrar las filas filtradas
+print(filas_sin_municipio)
+```
+Convertimos las columnas lat, lng a números
+```{r}
+df_nuevo$lat <- as.numeric(gsub(",", ".", df_nuevo$lat))
+df_nuevo$lng <- as.numeric(gsub(",", ".", df_nuevo$lng))
+
+# Verificamos si hay valores NA en 'lat' o 'lng' para averiguar si la conversión se ha hecho correctamente
+sum(is.na(df_nuevo$lat))
+sum(is.na(df_nuevo$lng))
+```
+
+Averiguamos los valores posibles de "municipality" y vemos cuántas filas hay para cada valor
+```{r}
+unique(df_nuevo$municipality)
+tablamun_ord <- sort(table(df_nuevo$municipality))
+tablamun_ord
+```
+Hacemos lo mismo para la columna "neighborhood"
+```{r}
+unique(df_nuevo$neighborhood)
+tabla.barrio_ord <- sort(table(df_nuevo$neighborhood))
+tabla.barrio_ord
+```
+

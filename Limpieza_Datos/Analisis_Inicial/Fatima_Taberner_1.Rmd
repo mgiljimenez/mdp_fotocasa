@@ -1,0 +1,136 @@
+---
+title: "Variables_Fatima"
+output: html_document
+date: "2025-02-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Lectura de datos
+
+Cargamos los datos de ejemplo de Toyota Corolla.
+
+**IMPORTANTE:** Los datos siempre se deben cargar o leer dentro del propio R Markdown.
+```{r}
+fotocasa = read.csv("baseDatos_variables_Fatima.csv", row.names = 1, header = TRUE, sep = ";")
+
+dim(fotocasa)
+head(fotocasa)
+```
+
+# Nos aseguramos que todas las columnas con valores numéricos sean de tipo Int y eliminamos las que son de tipo carácter.
+```{r}
+## Convertimos los valores de energyEfficiency y environmentImpact a entero:
+fotocasa$energyEfficiency <- gsub(",", ".", fotocasa$energyEfficiency)
+fotocasa$energyEfficiencyInt <- as.integer(fotocasa$energyEfficiency)
+fotocasa$environmentImpact <- gsub(",", ".", fotocasa$environmentImpact)
+fotocasa$environmentImpactInt <- as.integer(fotocasa$environmentImpact)
+
+# Eliminamos las columnas energyEfficiency y environmentImpact ya que sus valores son números en formato carácter.
+fotocasa = subset(fotocasa, select = -c(energyEfficiency, environmentImpact))
+
+# Verificar los tipos de datos
+str(fotocasa)
+```
+
+# Tipos de variables
+
+Generamos la tabla que va a contener todas las variables y el tipo de variable que es.
+```{r}
+varFatFotocasa = data.frame("variable" = colnames(fotocasa),
+                            "tipo" = c(rep("categorical", 4), rep("numerical", 4)),
+                            stringsAsFactors = FALSE)
+rownames(varFatFotocasa) = varFatFotocasa$variable
+varFatFotocasa
+```
+
+# Variables a excluir de la BBDD
+
+## Variables constantes o casi constantes
+
+Comprobamos si existe alguna variable que no varía (o que varía muy poco) y la eliminamos de la base de datos, ya que no se tratará de una variable aleatoria y no tiene sentido incluirla en el análisis estadístico. Esto se comprueba de forma diferente para las variables numéricas y para las variables categóricas.
+
+En el caso de las variables numéricas, podemos calcular su desviación típica. Como la desviación típica depende de las unidades de medida y de la magnitud de la variable, es más aconsejable utilizar el coeficiente de variación.
+
+Para las variables categóricas, obtendremos una tabla de frecuencias para comprobar si toman distintos valores.
+
+```{r}
+## Numéricas
+summary(fotocasa[,varFatFotocasa$variable[varFatFotocasa$tipo == "numerical"]])
+                # saca de mi tabla de variables aquellas que son numéricas
+# Variabilidad de las variables numéricas (desviación típica)
+mySD = apply(fotocasa[,varFatFotocasa$variable[varFatFotocasa$tipo == "numerical"]], 2, sd)
+            #dataframe,  2: se aplica a columnas,    sd: aquello que quiero hacer en cada iteración
+       # apply(): para aplicar una función a lo largo de las filas o columnas de una matriz o data frame
+# Mejor calcular el coeficiente de variación porque no depende de las unidades o magnitud de las variables
+myMU = colMeans(fotocasa[,varFatFotocasa$variable[varFatFotocasa$tipo == "numerical"]])
+       # colMeans(): calcula la media de cada columna numérica en fotocasa
+myCV = mySD/myMU
+sort(myCV)
+
+## Categóricas
+# NO funciona con "binary" y no se porque.
+# apply(fotocasa[,varFatFotocasa$variable[varFatFotocasa$tipo == "binary"]], 2, table, useNA = "i")
+
+apply(fotocasa[,varFatFotocasa$variable[varFatFotocasa$tipo == "categorical"]], 2, table, useNA = "i")
+
+apply(fotocasa[,varFatFotocasa$variable[varFatFotocasa$tipo == "categorical"]], 2, function (x) round(100*table(x)/sum(table(x)), 2))
+```
+
+## Eliminación de variables
+
+En el análisis anterior, observamos que todos los valores de la variable "hasOnlineGuidedTour" son FALSO, lo que indica que ningún individuo dispone de una visita guiada online.
+
+Por otro lado, la variable "constructionType" permite distinguir entre viviendas de nueva construcción y de segunda mano. Sin embargo, todos los valores obtenidos corresponden a "secondHand", lo que significa que todas las viviendas analizadas son de segunda mano. Por lo tanto, esta variable también es constante.
+
+Dado que ambas variables son constantes y no aportan variabilidad a los datos, será necesario eliminarlas del análisis, ya que no contribuyen a la identificación de patrones ni aportan información relevante para el modelo.
+
+```{r}
+fotocasa2 = fotocasa[,setdiff(colnames(fotocasa), c("hasOnlineGuidedTour", "constructionType"))]
+varFatFotocasa2 = varFatFotocasa[colnames(fotocasa2),]
+head(fotocasa2, 20)
+head(varFatFotocasa2)
+```
+
+# Valores inconsistentes o anómalos, gráficos de variables numéricas
+
+A continuación, generamos una serie de gráficos para identificar si existen valores inconsistentes o anómalos.
+
+```{r}
+## Este gráfico representa los box-and-whisker de las cuatro variables numéricas.
+par(mar = c(9,4,2,2))
+boxplot(fotocasa2[,varFatFotocasa$variable[varFatFotocasa$tipo == "numerical"]], log = "y", las = 2)
+# log = "y", las = 2: estos dos atributos son para escalar y 'adimensionar' las variables
+# para poder comparar entre todas las variables
+
+## Gráfico de barras para 'bathrooms'
+barplot(table(fotocasa2$bathrooms), xlab = "Nº de baños")
+## Gráfico de barras para 'floor'
+barplot(table(fotocasa2$floor), xlab = "Nº de planta")
+## Histograma para 'energyEfficiencyInt'
+hist(fotocasa2$energyEfficiencyInt, 50, xlab = "kWh/m²", main = "Eficiencia energética")
+## Caja y bigotes para 'energyEfficiencyInt'
+boxplot(fotocasa2$energyEfficiencyInt, xlab =  "kWh/m²", main = "Eficiencia energética")
+## Histograma para 'environmentImpactInt'
+hist(fotocasa2$environmentImpactInt, 50, xlab = "CO2/m²", main = "Impacto medioambiental")
+## Caja y bigotes para 'environmentImpactInt'
+boxplot(fotocasa2$environmentImpactInt, xlab = "CO2/m²", main = "Impacto medioambiental")
+```
+
+Según los histogramas de eficiencia energética e impacto medioambiental, la mayoría de los valores adoptan un valor máximo (999), no obstante creemos que son datos válidos ya que es probable que haya una alto porcentaje de viviendas cuya eficiencia energética e impacto medioambiental sea considerablemente alto.
+
+Además de esto, no se han encontrado valores insconstantes o anómalos en las variables estudiadas.
+
+# Valores faltantes 
+
+A continuación, generaremos  una tabla resumen con el número y porcentaje de valores faltantes en cada variable de la base de datos, mostrando solo las variables que tienen valores faltantes.
+
+```{r missing, echo = TRUE}
+numNA = apply(fotocasa2, 2, function(x) sum(is.na(x)))
+percNA = round(100*apply(fotocasa2, 2, function(x) mean(is.na(x))), 2)
+tablaNA = data.frame("tipo" = varFatFotocasa2[,-1], numNA, percNA)
+tablaNA[tablaNA$numNA > 0,]
+```
+Como podemos ver, no existen valores faltantes en las variables numéricas de nuestra base de datos.

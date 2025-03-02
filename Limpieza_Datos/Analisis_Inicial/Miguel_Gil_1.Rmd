@@ -1,0 +1,138 @@
+---
+title: "Práctica guiada: Preparación de Bases de Datos"
+author: "Sonia Tarazona"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+```
+
+
+
+# Lectura de datos
+
+Cargo el Excel en crudo.
+
+```{r datos}
+data_raw = read_excel("fotocasa.xlsx")  
+str(data_raw)  # Tipos de datos
+summary(data_raw)  # Estadísticas básicas
+colSums(is.na(data_raw))  # Número de valores NA por columna
+```
+
+
+# Proceso a realizar un análisis univariante de las siguientes variables:
+
+```{r tipos, echo = TRUE}
+mis_variables = c("tieneAscensor",
+"tieneTrastero",
+"tieneCalefaccion",
+"tieneAireAcondicionado",
+"propertyTypeId",
+"propertySubtypeId",
+"GeoGeneralRating",
+"propertyCounter_buy",
+"priceDescription_buy",
+"propertyCounter_rent")
+
+#BUSCO LA CANTIDAD DE NULOS PARA CADA VARIABLE
+for (var in mis_variables) {
+  cat(var, ":", sum(is.na(data_raw[[var]])), "nulos\n")
+}
+```
+```{r tipos, echo = TRUE}
+
+descData = data.frame(
+  variable = mis_variables,
+  tipo = c("binary", "binary", "binary", "binary", "categorical", "categorical", "numerical", "numerical", "numerical", "numerical")
+)
+
+```
+
+##### SUMMARY DE LAS NUMÉRICAS #####
+
+```{r ctes, echo = TRUE}
+## Numéricas
+summary(data_raw[,descData$variable[descData$tipo =="numerical"]])
+
+```
+## ANOMALÍAS ENCONTRADAS
+# GeoGeneralRating: Presenta 319 NULOS
+# propertyCounter_buy: mucha variabilidad (mínimo 2, máximo 2759 mediana 39) HAY UN VALOR ANÓMALO ERRONEO POR FALTA DE LA MUNICIPALITY SE HA IMPUTADO INCORRECTAMENTE 2759
+
+# priceDescription_buy: no presenta anomalías
+# propertyCounter_rent: mucha variabilidad (mínimo 1, máximo 1937 mediana 49) : HAY UN VALOR ANÓMALO ERRONEO POR FALTA DE LA MUNICIPALITY SE HA IMPUTADO INCORRECTAMENTE 1937.
+
+
+
+# Valores inconsistentes o anómalos
+
+```{r anomalos, echo = TRUE}
+numerical_vars <- descData$variable[descData$tipo == "numerical"]
+
+# Generar boxplots en una ventana gráfica
+par(mfrow = c(2, 2))  # Ajusta la disposición de los gráficos (cambia si hay más variables)
+for (var in numerical_vars) {
+  boxplot(data_raw[[var]], main = paste("Boxplot de", var), col = "lightblue", border = "black")
+}
+par(mfrow = c(1, 1))  # Restablecer la disposición de la ventana gráfica
+
+par(mfrow = c(2, 2))  # Ajusta la disposición de los gráficos
+for (var in numerical_vars) {
+  hist(data_raw[[var]], main = paste("Histograma de", var), col = "lightgreen", border = "black", breaks = 30)
+}
+par(mfrow = c(1, 1))  # Restablecer la disposición
+
+```
+
+
+##### SUMMARY DE LAS CATEGÓRICAS #####
+
+```{r anomalos2, echo = TRUE}
+categorical_vars <- descData$variable[descData$tipo == "categorical"]
+lapply(data_raw[, categorical_vars, drop = FALSE], function(x) table(x, useNA = "ifany"))
+
+```
+## ANOMALÍAS ENCONTRADAS
+# propertyTypeId: es constante en 2: VARIABLE A ELIMINAR
+# propertySubtypeId: 1 (1340 valores), 2 (283 valores), del resto menos de 100 valores cada categoría. Además con categóricas y están como numéricas: Trato de identificar a qué corresponde cada uno
+
+propertySubtypeId 1 -> Piso
+propertySubtypeId 2 -> Apartamento
+propertySubtypeId 3 -> Casa o chalet
+propertySubtypeId 5 -> Casa adosada
+propertySubtypeId 6 -> Ático
+propertySubtypeId 7 -> Dúplex
+propertySubtypeId 8 -> Loft
+propertySubtypeId 52 -> Bajos
+propertySubtypeId 54 -> Estudio
+
+# Se propone mantener Piso, Apartamento y Ático y Unir el resto en una nueva categoría "Otros" o similar
+
+```{r missing, echo = TRUE}
+
+```
+
+##### SUMMARY DE LAS BINARIAS #####
+
+```{r missing2, echo = TRUE}
+binary_vars <- descData$variable[descData$tipo == "binary"]
+lapply(data_raw[, binary_vars, drop = FALSE], function(x) table(x, useNA = "ifany"))
+```
+
+## ANOMALÍAS ENCONTRADAS
+
+tieneAscensor: 27% FALSE
+tieneTrastero: 8% TRUE
+tieneCalefaccion: 37% FALSE
+tieneAireAcondicionado: 18% FALSE

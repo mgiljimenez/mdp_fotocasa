@@ -1,0 +1,194 @@
+---
+title: "mdppasar"
+author: "ANA"
+date: "2025-03-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r datos}
+library(readxl)
+fotocasa = read_excel("fotocasa.xlsx")
+variables=subset(fotocasa, select = 19:26)
+
+desvariables = data.frame("variable" = colnames(variables),"tipo" = c(rep("categorical", 2), rep("numerical", 2), rep("categorical", 2), rep("numerical", 2)))
+rownames(desvariables) = desvariables$variable
+desvariables
+```
+
+Selecciono solo las variables de estudio definiendo el tipo
+
+```{r datos}
+#ANALISIS VARIABLES
+
+## Numéricas
+summary(fotocasa[,desvariables$variable[desvariables$tipo == "numerical"]])
+
+# Variabilidad de las variables numéricas (desviación típica)
+mySD = apply(fotocasa[,desvariables$variable[desvariables$tipo == "numerical"]], 2, sd)
+# CalculO Del coeficiente de variación porque no depende de las unidades o magnitud de las variables
+myMU = colMeans(fotocasa[,desvariables$variable[desvariables$tipo == "numerical"]])
+myCV = mySD/myMU
+sort(myCV)
+
+
+##Categoricas
+apply(fotocasa[,desvariables$variable[desvariables$tipo == "categorical"]], 2, table, useNA = "i")
+```
+Aqui vemos como hay valores atipicos en las diversas variables como 0 habitaciones,de precio 0, 0 metros cuadrados y 1065944, o trambién la gran cantidad quer hay de valores nulos en variables como antiguedad.
+
+```{r}
+#ESTE CHUNK NO ES PARA LA MEMORIA, ES PARA SALVAR LA VARIABLE HOTWATER Y PONER LOS VALORES NULOS COMO NUMEROS ALEATORIOS DE TIPO 1 O 2
+fotocasa$hotWater[fotocasa$hotWater == 0] <- NA
+fotocasa$hotWater[fotocasa$tieneCalefaccion == FALSE] <- 0
+
+reemplazar_nulos <- function(variable) {
+  variable[is.na(variable)] <- sample(c(1, 2), sum(is.na(variable)), replace = TRUE)
+  return(variable)
+}
+
+fotocasa$hotWater <- reemplazar_nulos(fotocasa$hotWater)
+fotocasa
+
+```
+
+```{r}
+
+fotocasa$orientation[fotocasa$orientation == 0] <- NA
+fotocasa$conservationStatus[fotocasa$conservationStatus == 0] <- NA
+colSums(is.na(fotocasa))
+
+library(naniar)
+
+gg_miss_var(fotocasa)  # Muestra los valores faltantes por variable
+
+```
+Tras contrastar en la pagina web que significaban los 0 en variables como ConservationStatus, antiquity y orientation, vimos que eran realmente un valor nulo ya que la pagina no ofrecia informacion. Por ello los sustituimos por valores nulos. Cabe destacar en la variable de hotWater que los ceros no eran que la pagina no ofrecia informacion sino que simplemente no tenia calefaccion por ello esos valores los dejamos como un 0 y tambien en priceAmountDrop los 0 significan que ese piso no ha bajado de precio.
+
+```{r}
+porcentaje_na <- colMeans(is.na(fotocasa)) * 100  
+# Mostrar los resultados
+print(porcentaje_na)
+```
+Debido al alto porcentaje de faltantes en las variables antiquity, conservationstatus y orientation decidimos borrarlas ya que no hay manera de poder utilizarlas y tenemos otras variables para nuestro analisis.
+
+```{r}
+# Definir límites con percentiles extremos
+limite_inferior <- quantile(variables$surface, 0.01, na.rm = TRUE)  # 1% más bajo
+limite_superior <- quantile(variables$surface, 0.99, na.rm = TRUE)  # 99% más alto
+
+# Identificar valores atípicos extremos
+variables$atipico <- variables$surface < limite_inferior | variables$surface > limite_superior
+
+# Mostrar solo los valores atípicos
+variables[variables$atipico, ]
+
+fotocasa[variables$atipico, ]
+```
+Vemos como hay datos inconsistentes ya que es imposible que un piso tenga 100 mil metros cuadrados o 1700 por tanto los imputamos en base al precio medio del barrio de 80 metros cuadrados.
+
+```{r}
+fotocasa$surface[fotocasa$surface == 1065944] <- 70
+fotocasa$surface[fotocasa$surface == 1752] <- 88
+
+```
+Habiamos tambien visto en el analisis previo que habia pisos con superficie 0 por lo que filtramos tambien los que tengan muy pocos metros cuadrados.
+
+```{r}
+fotocasa$atipico <- fotocasa$surface < 10 # Reducir el umbral
+fotocasa[fotocasa$atipico, ]  # Ver outliers
+```
+
+```{r}
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/184501582/d"] <- 30
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-ascensor-amueblado-internet/183905822/d"] <-31
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/185476012/d"] <- 29
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183192965/d"] <- 69
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-internet/185346488/d"] <- 68
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183192872/d"] <- 46
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192701/d"] <- 30
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-internet/183192368/d"] <-74
+  fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/185007604/d"] <-45
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192880/d"] <-29
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192410/d"] <-45
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183905806/d"] <-31
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-se-aceptan-mascotas-internet/184171630/d"] <-76
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-internet/184629971/d"] <-29
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-internet/183905816/d"] <-29
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/185530309/d"] <-75
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183192088/d"] <-31
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado/185259896/d"] <-60
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-internet/183193164/d"] <-96
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183905859/d"] <-30
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-se-aceptan-mascotas-internet/184497557/d"] <-46
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/184501580/d"] <-31
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183192221/d"] <-30
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183194067/d"] <-44
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado/183192323/d"] <-96
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-se-aceptan-mascotas-internet/184215458/d"] <-67
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183906415/d"] <-69
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192397/d"] <-30
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-ascensor-amueblado-internet/183193121/d"] <-76
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-ascensor-amueblado-internet/183192970/d	
+"] <-69
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-television/183353505/d"] <-115
+fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado/183895086/d"] <-129
+  fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-jardin-terraza-trastero-zona-comunitaria-ascensor-patio-piscina-parking/177787121/d"] <-100
+  fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/barrio-de-benicalap/178752271/d"] <-63
+  fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-patio-amueblado/183970353/d"] <-88
+  fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/en-corts-doctor-waksman/185338511/d"] <-52
+  fotocasa$surface[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-ascensor-amueblado/185515078/d"] <-91
+  
+```
+
+Imputamos todos los valores atípicos revisandolos en la pagina web y en algunos usando el precio medio por 80 metros cuadrados del barrio al que pertenecen.
+
+Ahora arreglamos la variable precio que vimos que aparentemente tenia algunos atipicos de precio 0,pero no de valores muy grandes ya que son previos de alquieres razonables para casas grandes.
+
+```{r}
+# Calcular el Z-score
+z_scores <- scale(fotocasa$priceAmount)
+
+# Detectar valores atípicos (mayor a 3 o menor a -3)
+
+fotocasa$atipico <- abs(z_scores) > 2.5
+fotocasa[fotocasa$atipico, ]  # Ver outliers
+```
+
+
+```{r}
+fotocasa$atipico <- fotocasa$priceAmount < 100 # Reducir el umbral
+fotocasa[fotocasa$atipico, ]  # Ver outliers
+```
+```{r}
+fotocasa$priceAmount[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-ascensor-amueblado/183740538/d"] <-1650
+
+fotocasa$priceAmount[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/terraza-ascensor-patio-amueblado/182059510/d"] <-1300
+fotocasa$priceAmount[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado/164715406/d"] <-845
+fotocasa$priceAmount[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/russafa/185423428/d"] <-990
+fotocasa$priceAmount[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/calefaccion-amueblado/183912113/d"] <-2530
+fotocasa$priceAmount[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/el-cabanyal-el-canyamelar/185359235/d"] <-2160
+```
+
+Imputamos los precios 0 en base al precio del metro cuadrado del barrio.
+
+```{r}
+fotocasa$atipico <- fotocasa$rooms ==0 # Reducir el umbral
+fotocasa[fotocasa$atipico, ]  # Ver outliers
+```
+```{r}
+
+  fotocasa$rooms[fotocasa$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-ascensor-amueblado/185515078/d"] <-2
+  fotocasa$rooms[fotocasa$rooms == 0] <- 1
+```
+
+Casi todas las casas con 0 habitaciones hemos comprobado en la web que eran viviendas de una sola habitación.
+
+```{r}
+
+```
+
+

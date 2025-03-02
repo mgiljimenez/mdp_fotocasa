@@ -1,0 +1,164 @@
+---
+title: "Trabajo MDP: Preparación de Datos"
+author: ""
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+# Lectura de datos: 
+Cargamos los datos en crudo (data_raw)
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readxl)
+data_raw = read_excel("fotocasa.xlsx")  
+str(data_raw)  # Tipos de datos
+summary(data_raw)  # Estadísticas básicas
+colSums(is.na(data_raw))  # Número de valores NA por columna
+```
+
+
+# Eliminación de variables: 
+Borramos la diferentes variables que consideramos necesarias explicando su respectivo motivo.
+
+```{r datos}
+data_clean <- data_raw  # Creamos una copia
+data_clean <- subset(data_clean, select = -c(orientation, conservationStatus, antiquity, tram_count, hasOnlineGuidedTour, constructionType, propertyTypeId, energyEfficiency, environmentImpact, propertyTitle, ownerId))
+# orientation: 
+    ## 1275 nulos (representados con 0)
+# conservationStatus: 
+    ## 944 nulos (representados con 0)
+# antiquity: 
+    ## 1167 nulos
+# tram_count: 
+    ## constante
+# hasOnlineGuidedTour: 
+    ## constante
+# constructionType: 
+    ## constante
+# propertyTypeId:
+    ## constante
+# energyEfficiency:
+    ## Agrupada por categorías en energyEfficiencyRatingType
+# environmentImpactRatingType:
+    ## Agrupada por categorías en environmentImpactRatingType
+# propertyTitle:
+    ## Variable de Texto descriptiva del anuncio, no usaremos técnicas de procesamiento de lenguaje
+# ownerId:
+    # Id de la BBDD de Fotocasa del propietario: No aporta valor
+summary(data_clean)
+```
+
+
+# Valores anómalos e inconsistentes
+```{r}
+head(data_clean)
+# metro_count:
+    ## Se produjo un error en la extracción: No se encontró el municipio de un piso y se marcó con 64 paradas de metro
+data_clean= data_clean[data_clean$"metro_count"!= 64, ]
+
+# priceDescription_rent:
+    ## Cuando hay pocos pisos por barrio no aparece el precio medio por barrio (imputación a mano)
+data_clean$priceDescription_rent[data_clean$priceDescription_rent == 0 & data_clean$neighborhood
+== "Poble Nou"]=1320
+data_clean$priceDescription_rent[data_clean$priceDescription_rent == 0 & data_clean$neighborhood
+== "Massarrojos"]=832
+
+# surface: imputación a mano de valores anómalos
+data_clean$surface[data_clean$surface == 1065944] <- 70
+data_clean$surface[data_clean$surface == 1752] <- 88
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/184501582/d"] <- 30
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-ascensor-amueblado-internet/183905822/d"] <-31
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/185476012/d"] <- 29
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183192965/d"] <- 69
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-internet/185346488/d"] <- 68
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183192872/d"] <- 46
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192701/d"] <- 30
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-internet/183192368/d"] <-74
+  data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/185007604/d"] <-45
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192880/d"] <-29
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192410/d"] <-45
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183905806/d"] <-31
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-se-aceptan-mascotas-internet/184171630/d"] <-76
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-internet/184629971/d"] <-29
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-internet/183905816/d"] <-29
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/185530309/d"] <-75
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183192088/d"] <-31
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado/185259896/d"] <-60
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-internet/183193164/d"] <-96
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183905859/d"] <-30
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-se-aceptan-mascotas-internet/184497557/d"] <-46
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/184501580/d"] <-31
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/amueblado-internet/183192221/d"] <-30
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183194067/d"] <-44
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado/183192323/d"] <-96
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado-se-aceptan-mascotas-internet/184215458/d"] <-67
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado-internet/183906415/d"] <-69
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado-internet/183192397/d"] <-30
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-ascensor-amueblado-internet/183193121/d"] <-76
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-ascensor-amueblado-internet/183192970/d	
+"] <-69
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/ascensor-amueblado-television/183353505/d"] <-115
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-amueblado/183895086/d"] <-129
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-jardin-terraza-trastero-zona-comunitaria-ascensor-patio-piscina-parking/177787121/d"] <-100
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/barrio-de-benicalap/178752271/d"] <-63
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-patio-amueblado/183970353/d"] <-88
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/en-corts-doctor-waksman/185338511/d"] <-52
+data_clean$surface[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-ascensor-amueblado/185515078/d"] <-91
+data_clean$priceAmount[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-ascensor-amueblado/183740538/d"] <-1650
+
+data_clean$priceAmount[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/terraza-ascensor-patio-amueblado/182059510/d"] <-1300
+data_clean$priceAmount[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-ascensor-amueblado/164715406/d"] <-845
+data_clean$priceAmount[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/russafa/185423428/d"] <-990
+data_clean$priceAmount[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/calefaccion-amueblado/183912113/d"] <-2530
+data_clean$priceAmount[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/el-cabanyal-el-canyamelar/185359235/d"] <-2160
+
+# rooms: imputación manual de datos anómalos
+data_clean$rooms[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-ascensor-amueblado/185515078/d"] <-2
+data_clean$rooms[data_clean$rooms == 0] <- 1
+```
+
+
+# Creación de nuevas variables
+```{r}
+# Las variables metro_count y train_count tienen pocos datos por lo que decidimos agruparlas en una nueva variable public_transport_count sumando ambos valores
+data_clean$public_transport_count=data_clean$metro_count+data_clean$train_count
+# Una vez creada la nueva variable eliminamos las dos anteriores
+data_clean <- subset(data_clean, select = -c(metro_count, train_count))
+
+# En la variable propertySubtypeId vemos que hay una distribución poco igualada entre los diferentes grupo por lo que decidimos quedarnos con 
+  ## 1 (Piso), 2 (Apartamento), 6 (Ático) y agrupar el resto en otra categoría: 10 (Otros)
+# Reclasificar la variable propertySubtypeId
+data_clean$propertySubtypeId <- ifelse(data_clean$propertySubtypeId %in% c(1, 2, 6), 
+                                       data_clean$propertySubtypeId, 
+                                       10)  # Agrupar el resto como "Otros" (10)
+
+summary(data_clean)
+colSums(is.na(data_clean))  # Número de valores NA por columna
+```
+
+## ¿Qué representan los valores de propertySubtypeId?
+propertySubtypeId 1 -> Piso
+propertySubtypeId 2 -> Apartamento
+propertySubtypeId 3 -> Casa o chalet
+propertySubtypeId 5 -> Casa adosada
+propertySubtypeId 6 -> Ático
+propertySubtypeId 7 -> Dúplex
+propertySubtypeId 8 -> Loft
+propertySubtypeId 52 -> Bajos
+propertySubtypeId 54 -> Estudio
+
+# Exportación de Datos
+```{r}
+library(openxlsx)
+write.xlsx(data_clean, "data_clean.xlsx")
+```
+

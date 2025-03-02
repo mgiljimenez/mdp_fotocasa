@@ -1,0 +1,10 @@
+Este es el esquema de lo que he hecho:
+
+1. Cargar la base de datos en CSV
+2. Convertir los valores de energyEfficiency y environmentImpact a entero.
+3. Eliminar las columnas energyEfficiency y environmentImpact ya que sus valores son números en formato carácter.
+4. Generar la tabla de variables.
+5. Variables constantes.
+6. Eliminación de las variables "hasOnlineGuidedTour", "constructionType" porque son constantes.
+7. Valores inconsistentes o anómalos (nada nuevo)
+8. Valores faltantes (nada nuevo)
