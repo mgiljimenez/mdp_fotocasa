@@ -19,7 +19,8 @@ Cargamos los datos en crudo (data_raw)
 knitr::opts_chunk$set(echo = TRUE)
 
 library(readxl)
-data_raw = read_excel("fotocasa.xlsx")  
+library(openxlsx)
+data_raw = read_excel("datos_scraping.xlsx")  
 str(data_raw)  # Tipos de datos
 summary(data_raw)  # Estadísticas básicas
 colSums(is.na(data_raw))  # Número de valores NA por columna
@@ -124,6 +125,31 @@ data_clean$priceAmount[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vi
 # rooms: imputación manual de datos anómalos
 data_clean$rooms[data_clean$URL == "https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-parking-ascensor-amueblado/185515078/d"] <-2
 data_clean$rooms[data_clean$rooms == 0] <- 1
+
+# PARA SALVAR LA VARIABLE HOTWATER IMPUTAMOS LOS VALORES NULOS COMO NUMEROS ALEATORIOS DE TIPO 1 O 2, YA QUE TIENEN CALEFACCIÓN Y LOS TIPOS MÁS COMUNES SON 1 Y 2
+data_clean$hotWater[data_clean$hotWater == 0] <- NA
+data_clean$hotWater[data_clean$tieneCalefaccion == FALSE] <- 0
+
+reemplazar_nulos <- function(variable) {
+  variable[is.na(variable)] <- sample(c(1, 2), sum(is.na(variable)), replace = TRUE)
+  return(variable)
+}
+data_clean$hotWater <- reemplazar_nulos(data_clean$hotWater)
+
+
+urls_a_eliminar <- c("https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/amueblado/184952443/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/sant-francesc/183271411/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/ascensor-amueblado/177479034/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/amueblado-internet/185476011/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/amueblado-internet/184501581/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/aire-acondicionado-ascensor-amuebladointernet/185045214/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/amueblado-se-aceptan-mascotasinternet/184076403/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/aire-acondicionado-amueblado-internet/184981712/d",
+"https://www.fotocasa.es/es/alquiler/vivienda/valenciacapital/aire-acondicionado/184919716/d")
+urls_a_eliminar <- unlist(urls_a_eliminar)
+
+data_clean <- data_clean[!data_clean$URL %in% urls_a_eliminar, ]
+
 ```
 
 
