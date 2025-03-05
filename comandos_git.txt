@@ -1,0 +1,7 @@
+PARA SUBIR
+git add .
+git commit -m"prueba ana"
+git push
+
+PARA ACTUALIZAR
+git pull
