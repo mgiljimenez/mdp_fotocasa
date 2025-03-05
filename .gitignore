@@ -1,0 +1,45 @@
+# Archivos de Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de entornos virtuales
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Archivos de configuración de entornos
+.Python
+
+# Archivos de configuración de IDEs
+.idea/
+.vscode/
+*.swp
+
+# Archivos de configuración de sistemas operativos
+.DS_Store
+Thumbs.db
+
+# Archivos de logs
+*.log
+
+# Archivos de prueba y cobertura
+.coverage
+*.cover
+*.hypothesis/
+.pytest_cache/
+
+# Archivos de configuración de distribución
+*.egg-info/
+dist/
+build/
+eggs/
+MANIFEST
+
+# Archivos de configuración de PEP8 y linters
+*.tox/
+*.nox/
+*.coverage/
+*.hypothesis/
