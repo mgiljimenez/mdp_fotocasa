@@ -1,0 +1,136 @@
+---
+title: "pca"
+author: "Ana"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+fotocasa = read_excel("fotocasaImp.xlsx")
+variables <- fotocasa[, c(9,10,11,14,15,16,17,18,19,21,23,25,26,27,28,29,30,31, 32)]
+print(summary(variables))
+```
+
+```{r pca}
+library(knitr)
+library(FactoMineR)
+library(factoextra)
+res.pca = PCA(variables, scale.unit = TRUE, graph = FALSE, ncp = 10, 
+              quanti.sup = 13:15)
+eig.val <- get_eigenvalue(res.pca)
+VPmedio = 100 * (1/nrow(eig.val))
+fviz_eig(res.pca, addlabels = TRUE) +
+  geom_hline(yintercept=VPmedio, linetype=2, color="red")
+kable(eig.val[1:7,])
+```
+
+
+```{r distancias}
+K=7
+misScores = res.pca$ind$coord[,1:K]
+miT2 = colSums(t(misScores**2)/eig.val[1:K,1])
+I = nrow(variables)
+F95 = K*(I**2 - 1)/(I*(I - K)) * qf(0.95, K, I-K)
+F99 = K*(I**2 - 1)/(I*(I - K)) * qf(0.99, K, I-K)
+
+plot(1:length(miT2), miT2, type = "p", xlab = "Pisos", ylab = "T2")
+abline(h = F95, col = "orange", lty = 2, lwd = 2)
+abline(h = F99, col = "red3", lty = 2, lwd = 2)
+library(grid)
+library(gridExtra)
+
+
+p1 = fviz_pca_ind(res.pca, axes = c(1,2), geom = c("point"),
+                  habillage = factor(miT2 > F95)) +
+  tune::coord_obs_pred()
+
+p2 = fviz_pca_ind(res.pca, axes = c(1,3), geom = c("point"), 
+                  habillage = factor(miT2 > F95)) +
+  tune::coord_obs_pred() 
+
+
+grid.arrange(p1,p2, nrow = 1)
+```
+```{r filtrar_anomalos}
+anomalas = which(miT2 > F95)
+anomalas
+pisos_sin_anomalos=variables[-anomalas,]
+```
+```{r sin_anomalos}
+library(knitr)
+library(FactoMineR)
+library(factoextra)
+res.pca = PCA(pisos_sin_anomalos, scale.unit = TRUE, graph = FALSE, ncp = 10, 
+              quanti.sup = 13:15)
+eig.val <- get_eigenvalue(res.pca)
+VPmedio = 100 * (1/nrow(eig.val))
+fviz_eig(res.pca, addlabels = TRUE) +
+  geom_hline(yintercept=VPmedio, linetype=2, color="red")
+kable(eig.val[1:7,])
+```
+Al filtrar los pisos anómalos extremos y excluirlos del modelo, el resultado del PCA apenas varía. Por lo tanto, estos 
+inmuebles no están generando componentes innecesarias ni influyendo en los resultados del análisis.
+Teniendo esto en cuenta, continuaremos el análisis manteniendo los pisos atípicos en el modelo.
+Seguidamente, estudiaremos los diferentes criterios para seleccionar el número de componentes vistos en clase.
+En primer lugar, para explicar el 80% de los datos necesitaríamos incluir 7 componentes; aunque esta opción
+complicaría excesivamente la interpretación de resultados. Paralelamente, aplicando el criterio del codo
+seleccionaríamos entre 3 y 4 componentes.
+Para decidir el número definitivo, aplicaremos un modelo predictivo de validación cruzada.
+El proceso es el siguiente:
+1. Eliminar un grupo de observaciones
+2. Ajustar el modelo con las observaciones restantes
+3. Predecir las observaciones eliminadas
+4. Repetir hasta haber predicho todas las observaciones
+La medida del error de dicha predicción es la suma de cuadrados de los errores
+de predicción.
+```{r validacion_cruzada}
+#install.packages("caret")  # Si no lo tienes instalado
+#install.packages("pls")    # Para PCA + Regresión
+library(caret)
+library(pls)
+set.seed(123)  # Fijamos semilla para reproducibilidad
+
+# Definir variables predictoras y variable objetivo
+X <- variables[, !(names(variables) %in% c("priceAmount"))]  # Excluir "Precio"
+Y <- variables$priceAmount  # Variable objetivo
+
+# Configuración de validación cruzada (10-fold cross-validation)
+control <- trainControl(method = "cv", number = 10)
+
+# Entrenar modelo de regresión con PCA
+modelo_pcr <- train(
+  priceAmount ~ .,      # Fórmula: Predecir Precio con todas las variables
+  data = variables,
+  method = "pcr",  # "pcr" = Regresión con PCA
+  trControl = control,
+  tuneLength = 10  # Probar hasta 10 componentes principales
+)
+
+# Mostrar resumen del modelo
+print(modelo_pcr)
+
+# Graficar error vs. número de componentes principales
+plot(modelo_pcr)
+```
+De acuerdo con los resultados obtenidos, el error de las predicciones se estabiliza en 3 componentes principales,
+con un valor de aproximadamente 470€ (un 30% del precio medio). Asimismo, la bondad del ajuste también converge
+en 3 dimensiones, con un valor ligeramente superior a 0,5. A partir de estos estos valores, aunque nuestro modelo
+de tres componentes es mejorable, podemos considerar aceptables sus predicciones.
+
+
+```{r loadings}
+fviz_pca_var(res.pca, axes = c(1,2), repel = TRUE, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+fviz_pca_var(res.pca, axes = c(1,3), repel = TRUE, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+#no hacemos grafico de scores porque resulta ilegible, ¿por barrios/vecindarios? MIRAR MAÑANA
+
+```
+```{r contribucion_variables_primitivas}
+fviz_contrib(res.pca, choice = "var", axes = 1)
+fviz_contrib(res.pca, choice = "var", axes = 2)
+fviz_contrib(res.pca, choice = "var", axes = 3)
+
+```
+
