@@ -23,21 +23,11 @@ data = read_excel("data_clean1.xlsx")
 descFotocasa = data.frame("variable" = colnames(data),
 "tipo" = c ("text","num","num",rep("cat",4),   "date",rep("cat",2),rep("num",7),
 rep("bool",4),rep("num",12),"bool"))
+
 ```
 
 ```{r}
 # AFC SIMPLE : neighborhood vs price
-
-propertySubtypeId 1 -> Piso
-propertySubtypeId 2 -> Apartamento
-propertySubtypeId 3 -> Casa o chalet
-propertySubtypeId 5 -> Casa adosada
-propertySubtypeId 6 -> Ático
-propertySubtypeId 7 -> Dúplex
-propertySubtypeId 8 -> Loft
-propertySubtypeId 52 -> Bajos
-propertySubtypeId 54 -> Estudio
-
 hist(data$priceAmount, breaks = 30, col = "lightblue", main = "Distribución de priceAmount", xlab = "priceAmount")
 
 data$priceCategory <- cut(data$priceAmount,
