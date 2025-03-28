@@ -1,0 +1,32 @@
+---
+title: "clustering"
+author: "ANA"
+date: "2025-03-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(knitr)
+library(cluster)
+library(FactoMineR)
+library(factoextra)
+library(NbClust)
+library(clValid)
+```
+
+```{r}
+library(readxl)
+fotocasa = read_excel("fotocasaImp.xlsx")
+```
+
+```{r}
+
+```
+
+
+
