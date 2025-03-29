@@ -64,6 +64,16 @@ El proceso es el siguiente:
 4. Repetir hasta haber predicho todas las observaciones
 La medida del error de dicha predicción es la suma de cuadrados de los errores
 de predicción.
+```{r pca_3_componentes}
+K=3
+res.pca = PCA(variables, scale.unit = TRUE, graph = FALSE, ncp = K, quanti.sup=23)
+eig.val <- get_eigenvalue(res.pca)
+VPmedio = 100 * (1/nrow(eig.val))
+fviz_eig(res.pca, addlabels = TRUE) +
+  geom_hline(yintercept=VPmedio, linetype=2, color="red")
+kable(eig.val[1:K,])
+```
+
 
 De acuerdo con los resultados obtenidos, el error de las predicciones se estabiliza en 3 componentes principales,
 con un valor de aproximadamente 470€ (un 30% del precio medio). Asimismo, la bondad del ajuste también converge
@@ -71,7 +81,7 @@ en 3 dimensiones, con un valor ligeramente superior a 0,5. A partir de estos est
 de tres componentes es mejorable, podemos considerar aceptables sus predicciones.
 
 ```{r distancias_dentro_modelo}
-K=3
+
 misScores = res.pca$ind$coord[,1:K]
 miT2 = colSums(t(misScores**2)/eig.val[1:K,1])
 I = nrow(variables)
@@ -153,12 +163,12 @@ pisos_sin_anomalos=variables[-anomalas,]
 library(knitr)
 library(FactoMineR)
 library(factoextra)
-res.pca_sin_anomalos = PCA(pisos_sin_anomalos, scale.unit = TRUE, graph = FALSE, ncp = 10)
+res.pca_sin_anomalos = PCA(pisos_sin_anomalos, scale.unit = TRUE, graph = FALSE, ncp = K, quanti.sup=23)
 eig.val <- get_eigenvalue(res.pca_sin_anomalos)
 VPmedio = 100 * (1/nrow(eig.val))
 fviz_eig(res.pca_sin_anomalos, addlabels = TRUE) +
   geom_hline(yintercept=VPmedio, linetype=2, color="red")
-kable(eig.val[1:7,])
+kable(eig.val[1:K,])
 ```
 Al filtrar los pisos anómalos extremos y excluirlos del modelo, el resultado del PCA apenas varía. Por lo tanto, estos 
 inmuebles no están generando componentes innecesarias ni influyendo en los resultados del análisis.
