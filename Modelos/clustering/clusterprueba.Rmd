@@ -22,7 +22,7 @@ library(readxl)
 fotocasa = read_excel("fotocasaImp.xlsx")
 colnames(fotocasa)
 ```
-clustering 1 -> basado en comodidad y confort (variables: bathrooms, rooms, surface, floor, tieneAscensor, tieneTrastero, tieneCalefaccion, tieneAireAcondicionado)
+clustering 1 -> basado en comodidad y confort (variables: bathrooms, rooms, surface, tieneAscensor, tieneTrastero, tieneCalefaccion, tieneAireAcondicionado)
 
 clustering 2 -> basado en servicios del barrio (posible agrupación por barrios, para solventar los valores faltantes en el pca) (variables: supermarket_count, pharmacy_count, hospital_count, university_count, college_count, public_transport_count)
 
@@ -31,9 +31,7 @@ clustering 2 -> basado en servicios del barrio (posible agrupación por barrios,
 columnas= colnames(fotocasa)
 
 # Definir las variables de confort
-confort = c(
-  "bathrooms", "floor", "hotWater", "rooms", "surface",
-  "tieneAscensor", "tieneTrastero", "tieneCalefaccion", "tieneAireAcondicionado"
+confort = c("tieneAscensor", "tieneTrastero", "tieneCalefacción", "tieneAireAcondicionado", "bathrooms", "surface", "rooms"
 )
 
 # Identificar automáticamente las variables de servicios (aquellas que terminan en "_count")
@@ -53,104 +51,202 @@ print(tabla)
 ```
 
 
-En primer lugar, seleccionamos las variables para el primer cluster y comprobamos si existe una tendencia de agrupación entre los inmuebles, a través de un mapa de calor. Dado que pretendemos detectar si existen similitudes entre los valores de las variables, emplearemos una medida de distancia real. Probaremos varias opciones y seleccionaremos aquella con la que obtengamos unos resultados más claros.
+En primer lugar, seleccionamos las variables para el primer cluster y comprobamos si existe una tendencia de agrupación entre los inmuebles, a través de un mapa de calor. Dado que pretendemos detectar si existen similitudes entre los valores de las variables, emplearemos una medida de distancia real. En concreto, la distancia de gowel, puesto que esta es la única  que nos permite combinar variables binarias con numéricas.
 
 ```{r confort}
 fotocasaConfort = fotocasa[,tabla$Confort == 1]
+head(fotocasaConfort)
 fotocasaConfort = scale(fotocasaConfort, center = TRUE, scale = TRUE)
-```
-
-```{r heatmap_confort_euclideana}
-
-#distancia EUCLIDEA
-midist_eu <- get_dist(fotocasaConfort, stand = FALSE, method = "euclidean")
-fviz_dist(midist_eu, show_labels = TRUE, lab_size = 0.3,
-          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
-
-
 
 ```
-```{r heatmap_confort_manhattan}
-#distancia MANHATTAN
-midist_manhattan <- get_dist(fotocasaConfort, stand = FALSE, method = "manhattan")
-fviz_dist(midist_manhattan, show_labels = TRUE, lab_size = 0.3,
-          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
-```
-```{r heatmap_confort_max}
 
-#distancia MAXIMA
-midist <- get_dist(fotocasaConfort, stand = FALSE, method = "maximum")
-fviz_dist(midist, show_labels = TRUE, lab_size = 0.3,
+
+```{r heatmap_confort_gower}
+help(get_dist)
+#distancia GOWER
+midist_gower <- gower_dist <- daisy(fotocasaConfort, metric = "gower")
+fviz_dist(midist_gower, show_labels = TRUE, lab_size = 0.3,
           gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 ```
 
 
 
-```{r heatmap_confort_canberra}
-
-#distancia CANBERRA
-midist <- get_dist(fotocasaConfort, stand = FALSE, method = "canberra")
-fviz_dist(midist, show_labels = TRUE, lab_size = 0.3,
-          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
-
-```
 
 
 
 
-```{r metodoWard}
+
+```{r confort_metodoWard}
 library(grid)
 library(gridExtra)
-p1 = fviz_nbclust(x = fotocasaConfort, FUNcluster = hcut, method = "silhouette", 
+help("fviz_nbclust")
+p1 = fviz_nbclust(x = fotocasaConfort, FUNcluster = hcut, diss=midist_gower, 
                   hc_method = "ward.D2", k.max = 10, verbose = FALSE, 
                   hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
 p2 = fviz_nbclust(x = fotocasaConfort, FUNcluster = hcut, method = "wss", 
-                  hc_method = "ward.D2", k.max = 10, verbose = FALSE, 
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,diss=midist_gower, 
                   hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
 grid.arrange(p1, p2, nrow = 1)
 ```
-```{r metodo_pam}
+```{r confort_pam}
 p1 = fviz_nbclust(x = fotocasaConfort, FUNcluster = pam, method = "silhouette", 
-             k.max = 10, verbose = FALSE) +
+             k.max = 10, verbose = FALSE, diss=midist_gower) +
   labs(title = "Numero optimo de clusters")
 p2 = fviz_nbclust(x = fotocasaConfort, FUNcluster = pam, method = "wss", 
-             k.max = 10, verbose = FALSE) +
+             k.max = 10, verbose = FALSE, diss=midist_gower) +
   labs(title = "Numero optimo de clusters")
 grid.arrange(p1, p2, nrow = 1)
+
 ```
 
-```{r metodo_kmeans}
-p1 = fviz_nbclust(x = fotocasaConfort, FUNcluster = kmeans, method = "silhouette", 
-             k.max = 10, verbose = FALSE) +
-  labs(title = "K-means")
-p2 = fviz_nbclust(x = fotocasaConfort, FUNcluster = kmeans, method = "wss", 
-             k.max = 10, verbose = FALSE) +
-  labs(title = "K-means")
-grid.arrange(p1, p2, nrow = 1)
-```
 
 
 ```{r metodos}
-clustWARD <- hclust(midist_manhattan, method="ward.D2")
-gruposWARD <- cutree(clustWARD, k=7)
+clustWARD <- hclust(midist_gower, method="ward.D2")
+gruposWARD <- cutree(clustWARD, k=5)
 table(gruposWARD)
-clustPAM <- pam(fotocasaConfort, k = 7)
+clustPAM <- pam(midist_gower, k =6, diss=TRUE)
 table(clustPAM$clustering)
-clustMEANS <- kmeans(fotocasaConfort, centers = 7, nstart = 20)
+
+```
+
+
+
+
+```{r seleccionar_clustering}
+library(ggsci)
+colores = pal_npg("nrc")(5)
+colores2 = pal_npg("nrc")(6)
+par(mfrow = c(1,2))
+plot(silhouette(gruposWARD, midist_gower), col=colores, border=NA, main = "WARD")
+plot(silhouette(clustPAM$clustering, midist_gower), col=colores2, border=NA, main = "K-MEDIOIDES")
+```
+
+```{r pca_confort}
+gruposWARD=factor(gruposWARD)
+miPCA = PCA(fotocasaConfort, scale.unit = FALSE, graph = FALSE, ncp=2)
+eig.val = get_eigenvalue(miPCA)
+Vmedia = 100 * (1/nrow(eig.val))
+fviz_eig(miPCA, addlabels = TRUE) +
+  geom_hline(yintercept=Vmedia, linetype=2, color="red")
+```
+
+```{r pca_confort_GRAFICOS}
+p1 <- fviz_pca_ind(miPCA,
+                   geom = "point",
+                   habillage = gruposWARD,
+                   addEllipses = TRUE,
+                   palette = "jco",
+                   title = "Score plot: individuos")
+
+# Loading plot (variables activas)
+p2 <- fviz_pca_var(miPCA,
+                   col.var = "contrib", # Color según contribución a los ejes
+                   gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+                   repel = TRUE,
+                   title = "Loading plot: variables")
+
+# Mostrar ambos juntos
+grid.arrange(p1, p2, nrow = 1) 
+```
+```{r mediasConfort}
+mediasCluster = aggregate(fotocasaConfort, by = list("cluster" = gruposWARD), mean)[,-1]
+rownames(mediasCluster) = paste0("c",1:5)
+matplot(t(mediasCluster), type = "l", col = colores, ylab = "", xlab = "", lwd = 2,
+        lty = 1, main = "Perfil medio de los clusters", xaxt = "n")
+axis(side = 1, at = 1:ncol(fotocasaConfort), labels = colnames(fotocasaConfort), las = 2)
+legend("topleft", as.character(1:5), col = colores, lwd = 2, ncol = 3, bty = "n")
+mediasCluster
+```
+
+Posteriormente, se realizará el segundo clustering (por servicios ofrecidos en cada barrio).En este caso, como el nuevo subconjunto de datos estará formado únicamente por variables numéricas, emplearemos una medida de distancia de cercanía. Probaremos las que nos proporciona rStudio y seleccionaremos aquella con la que obtengamos una tendencia de agrupación más clara. 
+
+```{r servicios}
+fotocasaServicios = fotocasa[,tabla$Servicios == 1]
+head(fotocasaServicios)
+fotocasaServicios = scale(fotocasaServicios, center = TRUE, scale = TRUE)
+```
+```{r heatmap_servicios_euclidea}
+midist_eu <- get_dist(fotocasaServicios, stand = FALSE, method = "euclidean")
+fviz_dist(midist_eu, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+```{r heatmap_serviciosManhattan}
+midist_manhattan <- get_dist(fotocasaServicios, stand = FALSE, method = "manhattan")
+fviz_dist(midist_manhattan, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+```{r heatmap_servicios_max}
+help(get_dist)
+midist_max <- get_dist(fotocasaServicios, stand = FALSE, method = "maximum")
+fviz_dist(midist_max, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+
+
+```{r heatmap_servicios_canberra}
+midist_canberra <- get_dist(fotocasaServicios, stand = FALSE, method = "canberra")
+fviz_dist(midist_canberra, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+seleccionamos la distancia euclidiana. Seguidamente, probaremos varios clusterings para identificar aquel que proporciona una agrupación más acertada.
+
+
+```{r serv_metodoWard}
+library(grid)
+library(gridExtra)
+help("fviz_nbclust")
+p1 = fviz_nbclust(x = fotocasaServicios, FUNcluster = hcut, diss=midist_eu, 
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE, 
+                  hc_metric = "euclidean") + labs(title = "Num. optimo clusters")
+p2 = fviz_nbclust(x = fotocasaServicios, FUNcluster = hcut, method = "wss", 
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,diss=midist_eu, 
+                  hc_metric = "euclidean") + labs(title = "Num. optimo clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+```{r serv_pam}
+p1 = fviz_nbclust(x = fotocasaServicios, FUNcluster = pam, method = "silhouette", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = fotocasaServicios, FUNcluster = pam, method = "wss", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)
+
+```
+
+```{r serv_kmeans}
+p1 = fviz_nbclust(x = fotocasaServicios, FUNcluster = kmeans, method = "silhouette", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = fotocasaServicios, FUNcluster = kmeans, method = "wss", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+```{r serv_metodos}
+clustWARD <- hclust(midist_eu, method="ward.D2")
+gruposWARD <- cutree(clustWARD, k=6)
+table(gruposWARD)
+clustPAM <- pam(midist_eu, k =8, diss=TRUE)
+table(clustPAM$clustering)
+set.seed(100)
+clustMEANS <- kmeans(fotocasaServicios, centers = 7, nstart = 20)
 table(clustMEANS$cluster)
 ```
 
-
-
-
-```{r}
+```{r serv_seleccionar_clustering}
 library(ggsci)
 colores = pal_npg("nrc")(6)
-colores2 = pal_npg("nrc")(7)
+colores2 = pal_npg("nrc")(8)
+colores3=pal_npg("nrc")(7)
 par(mfrow = c(1,3))
-plot(silhouette(gruposWARD, midist_manhattan), col=colores, border=NA, main = "WARD")
-plot(silhouette(clustPAM$clustering, midist_manhattan), col=colores, border=NA, main = "K-MEDIOIDES")
-plot(silhouette(clustMEANS$cluster, midist_eu), col=colores2, border=NA, main = "K-MEDIAS")
+plot(silhouette(gruposWARD, midist_eu), col=colores, border=NA, main = "WARD")
+plot(silhouette(clustPAM$clustering, midist_eu), col=colores2, border=NA, main = "K-MEDIOIDES")
+plot(silhouette(clustMEANS$cluster, midist_eu), col=colores3, border=NA, main = "K-MEDIAS")
 ```
-
-

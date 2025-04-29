@@ -259,7 +259,6 @@ ggplot(data.frame(ID = 1:nrow(variables), Q = Q_estadistico), aes(x = ID, y = Q)
 
 ```{r filtrar_anomalos}
 anomalas = which(miT2 > F95)
-anomalas
 pisos_sin_anomalos=variables[-anomalas,]
 ```
 
