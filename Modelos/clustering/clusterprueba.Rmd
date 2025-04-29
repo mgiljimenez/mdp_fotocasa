@@ -7,10 +7,6 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-
-```{r}
 library(knitr)
 library(cluster)
 library(FactoMineR)
@@ -19,14 +15,142 @@ library(NbClust)
 library(clValid)
 ```
 
-```{r}
+
+
+```{r datos}
 library(readxl)
 fotocasa = read_excel("fotocasaImp.xlsx")
+colnames(fotocasa)
 ```
+clustering 1 -> basado en comodidad y confort (variables: bathrooms, rooms, surface, floor, tieneAscensor, tieneTrastero, tieneCalefaccion, tieneAireAcondicionado)
+
+clustering 2 -> basado en servicios del barrio (posible agrupación por barrios, para solventar los valores faltantes en el pca) (variables: supermarket_count, pharmacy_count, hospital_count, university_count, college_count, public_transport_count)
+
+```{r tabla}
+# Vector con nombres de todas las columnas
+columnas= colnames(fotocasa)
+
+# Definir las variables de confort
+confort = c(
+  "bathrooms", "floor", "hotWater", "rooms", "surface",
+  "tieneAscensor", "tieneTrastero", "tieneCalefaccion", "tieneAireAcondicionado"
+)
+
+# Identificar automáticamente las variables de servicios (aquellas que terminan en "_count")
+servicios = grep("_count$", columnas, value = TRUE)
+
+# Crear el data.frame de flags
+tabla <- data.frame(
+  Variable   = columnas,
+  Confort    = as.integer(columnas %in% confort),
+  Servicios  = as.integer(columnas %in% servicios),
+  stringsAsFactors = FALSE
+)
+
+# Mostrar resultado
+print(tabla)
+
+```
+
+
+En primer lugar, seleccionamos las variables para el primer cluster y comprobamos si existe una tendencia de agrupación entre los inmuebles, a través de un mapa de calor. Dado que pretendemos detectar si existen similitudes entre los valores de las variables, emplearemos una medida de distancia real. Probaremos varias opciones y seleccionaremos aquella con la que obtengamos unos resultados más claros.
+
+```{r confort}
+fotocasaConfort = fotocasa[,tabla$Confort == 1]
+fotocasaConfort = scale(fotocasaConfort, center = TRUE, scale = TRUE)
+```
+
+```{r heatmap_confort_euclideana}
+
+#distancia EUCLIDEA
+midist_eu <- get_dist(fotocasaConfort, stand = FALSE, method = "euclidean")
+fviz_dist(midist_eu, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+
+
+```
+```{r heatmap_confort_manhattan}
+#distancia MANHATTAN
+midist_manhattan <- get_dist(fotocasaConfort, stand = FALSE, method = "manhattan")
+fviz_dist(midist_manhattan, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+```{r heatmap_confort_max}
+
+#distancia MAXIMA
+midist <- get_dist(fotocasaConfort, stand = FALSE, method = "maximum")
+fviz_dist(midist, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+
+
+```{r heatmap_confort_canberra}
+
+#distancia CANBERRA
+midist <- get_dist(fotocasaConfort, stand = FALSE, method = "canberra")
+fviz_dist(midist, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+```
+
+
+
+
+```{r metodoWard}
+library(grid)
+library(gridExtra)
+p1 = fviz_nbclust(x = fotocasaConfort, FUNcluster = hcut, method = "silhouette", 
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE, 
+                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+p2 = fviz_nbclust(x = fotocasaConfort, FUNcluster = hcut, method = "wss", 
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE, 
+                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+```{r metodo_pam}
+p1 = fviz_nbclust(x = fotocasaConfort, FUNcluster = pam, method = "silhouette", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = fotocasaConfort, FUNcluster = pam, method = "wss", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+```{r metodo_kmeans}
+p1 = fviz_nbclust(x = fotocasaConfort, FUNcluster = kmeans, method = "silhouette", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "K-means")
+p2 = fviz_nbclust(x = fotocasaConfort, FUNcluster = kmeans, method = "wss", 
+             k.max = 10, verbose = FALSE) +
+  labs(title = "K-means")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+```{r metodos}
+clustWARD <- hclust(midist_manhattan, method="ward.D2")
+gruposWARD <- cutree(clustWARD, k=7)
+table(gruposWARD)
+clustPAM <- pam(fotocasaConfort, k = 7)
+table(clustPAM$clustering)
+clustMEANS <- kmeans(fotocasaConfort, centers = 7, nstart = 20)
+table(clustMEANS$cluster)
+```
+
+
+
 
 ```{r}
-
+library(ggsci)
+colores = pal_npg("nrc")(6)
+colores2 = pal_npg("nrc")(7)
+par(mfrow = c(1,3))
+plot(silhouette(gruposWARD, midist_manhattan), col=colores, border=NA, main = "WARD")
+plot(silhouette(clustPAM$clustering, midist_manhattan), col=colores, border=NA, main = "K-MEDIOIDES")
+plot(silhouette(clustMEANS$cluster, midist_eu), col=colores2, border=NA, main = "K-MEDIAS")
 ```
-
 
 
