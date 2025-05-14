@@ -1,7 +1,7 @@
 ---
-title: "Untitled"
-output: html_document
-date: "2025-03-12"
+title: "Examen MDP Prácticas Miguel Gil Jimenez"
+output: pdf_document
+date: "2025-04-04"
 ---
 
 ```{r setup, include=FALSE}
@@ -10,13 +10,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Read Excel
 
-```{r setup}
+```{r setup_2}
 library(readxl)
 library(knitr)
 library(FactoMineR)
 library(factoextra)
 library(corrplot)
 library(gridExtra)
+library(ggplot2)
 
 data = read_excel("data_clean1.xlsx")
 
@@ -72,5 +73,7 @@ fviz_ca_row(res.afc, axes = c(1,2), repel = TRUE, col.row = "contrib", gradient.
 ```
 ```{r}
 fviz_ca_col(res.afc, axes = c(1,2), repel = TRUE, col.col = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+
+
 ```
 
