@@ -1,0 +1,126 @@
+---
+title: "Regla_Asociacion"
+output: html_document
+date: "2025-04-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r v1}
+# Cargar librerías necesarias
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(arules)
+
+# Leer datos desde Excel
+datos <- read_excel("fotocasaImp.xlsx")
+
+data_variables <- datos %>%
+  select(
+    URL,
+    bathrooms,
+    rooms,
+    surface,
+    priceAmount,
+    tieneAscensor,
+    tieneTrastero,
+    tieneCalefaccion,
+    tieneAireAcondicionado
+  )
+
+data_variables$tieneAscensor <- ifelse(data_variables$tieneAscensor == 1, "con_ascensor", "sin_ascensor")
+data_variables$tieneTrastero <- ifelse(data_variables$tieneTrastero == 1, "con_trastero", "sin_trastero")
+data_variables$tieneCalefaccion <- ifelse(data_variables$tieneCalefaccion == 1, "con_calefaccion", "sin_calefaccion")
+data_variables$tieneAireAcondicionado <- ifelse(data_variables$tieneAireAcondicionado == 1, "con_aire", "sin_aire")
+data_variables$bathrooms <- dplyr::case_when(
+  data_variables$bathrooms == 1 ~ "1_banio",
+  data_variables$bathrooms == 2 ~ "2_banios",
+  data_variables$bathrooms >= 3 ~ "3+_banios",
+  TRUE ~ NA_character_
+)
+
+data_variables$rooms <- dplyr::case_when(
+  data_variables$rooms == 1 ~ "1_habitacion",
+  data_variables$rooms == 2 ~ "2_habitaciones",
+  data_variables$rooms == 3 ~ "3_habitaciones",
+  data_variables$rooms >= 4 ~ "4+_habitacioness",
+  TRUE ~ NA_character_
+)
+
+
+# Crear variable categórica de precio en cuartiles
+cuartiles <- ntile(data_variables$priceAmount, 4)
+data_variables$priceAmount <- dplyr::case_when(
+  cuartiles == 1 ~ "precio_bajo",
+  cuartiles == 2 ~ "precio_medio_bajo",
+  cuartiles == 3 ~ "precio_medio_alto",
+  cuartiles == 4 ~ "precio_alto"
+)
+
+# Crear variable categórica de surface en cuartiles
+cuartiles_surface <- ntile(data_variables$surface, 3)
+data_variables$surface <- dplyr::case_when(
+  cuartiles_surface == 1 ~ "surface_bajo",
+  cuartiles_surface == 2 ~ "surface_medio",
+  cuartiles_surface == 3 ~ "surface_alto"
+)
+
+
+# Convertir a formato largo
+datos_largos <- data_variables %>%
+  select(-URL) %>%  # Elimina columnas no categóricas o redundantes
+  mutate_all(as.character) %>%
+  mutate(id = row_number()) %>%
+  pivot_longer(cols = -id, names_to = "atributo", values_to = "items") %>%
+  unite("items", atributo, items, sep = "_")
+
+# Crear tabla binaria
+tabla_binaria <- datos_largos %>%
+  mutate(valor = 1) %>%
+  pivot_wider(names_from = items, values_from = valor, values_fill = 0)
+
+# Convertir a transacciones
+transacciones <- as(as.matrix(tabla_binaria[,-1]), "transactions")
+
+# Verificar ítems únicos
+itemLabels(transacciones)
+
+# Aplicar Apriori
+reglas <- apriori(transacciones, parameter = list(supp = 0.01, conf = 0.5))
+
+
+NoRedundantes = reglas[is.redundant(x=reglas, measure="confidence")]
+
+# Mostrar reglas principales
+inspect(head(NoRedundantes, 20))
+
+itemLabels(transacciones)
+```
+
+```{r v1}
+
+reglas_filtradas <- subset(NoRedundantes, confidence > 0.7 & lift > 3.5 & support > 0.015)
+print(length((reglas_filtradas)))
+inspect(sort(reglas_filtradas, by="lift", decreasing = TRUE))
+```
+
+```{r jlk}
+
+
+reglas_filtradas_precio_bajo <- subset(NoRedundantes, rhs %in% "priceAmount_precio_bajo" & lift>2.7 & confidence>0.8 & support>0.0107)
+print(length((reglas_filtradas_precio_bajo)))
+inspect(sort(reglas_filtradas_precio_bajo, by="lift", decreasing = TRUE))
+
+
+```
+
