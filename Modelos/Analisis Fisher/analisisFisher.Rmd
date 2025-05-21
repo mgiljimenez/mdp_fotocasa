@@ -1,0 +1,159 @@
+
+
+```{r}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(caret)
+# Librería para validación de métodos supervisados
+# https://cran.r-project.org/web/packages/caret/vignettes/caret.html
+# http://topepo.github.io/caret/index.html
+library(MASS) # Para el análisis discriminante
+library(readxl)
+library(dplyr)
+```
+
+```{r}
+fotocasa = read_excel("fotocasaImp.xlsx")
+# Crear la nueva columna binaryDrop
+fotocasa$binaryDrop <- ifelse(fotocasa$priceAmountDrop > 0, 1, 0)
+
+# Verificar resultado
+head(fotocasa)
+```
+```{r}
+
+# Convertir variables categóricas a factor
+data <- fotocasa %>%
+  mutate(
+    binaryDrop = as.factor(binaryDrop),
+    neighborhood = as.factor(neighborhood),
+    tieneAscensor = as.factor(tieneAscensor),
+    tieneTrastero = as.factor(tieneTrastero),
+    tieneCalefaccion = as.factor(tieneCalefaccion),
+    tieneAireAcondicionado = as.factor(tieneAireAcondicionado)
+  )
+
+# Seleccionar variables relevantes
+fotocasa <- data %>%
+  select(binaryDrop,
+         surface,
+         rooms,
+         bathrooms,
+         floor,
+         tieneAscensor,
+         tieneTrastero,
+         tieneCalefaccion,
+         tieneAireAcondicionado,
+         supermarket_count,
+         pharmacy_count,
+         hospital_count,
+         university_count,
+         college_count,
+         public_transport_count,
+         neighborhood,  # puedes cambiar por municipality si lo prefieres
+         )
+head(fotocasa)
+```
+
+```{r}
+# 1. Separar las clases
+minority <- fotocasa[fotocasa$binaryDrop == 1, ]
+majority <- fotocasa[fotocasa$binaryDrop == 0, ]
+
+# 2. Calcular cuántas observaciones tomar de la clase mayoritaria (2 veces la cantidad de la clase minoritaria)
+n_minority <- nrow(minority)
+n_majority_sample <- 2 * n_minority
+
+# 3. Submuestreo aleatorio de la clase mayoritaria
+set.seed(123)  # Fijar semilla para reproducibilidad
+majority_sample <- majority[sample(nrow(majority), n_majority_sample), ]
+
+# 4. Combinar ambos subconjuntos en uno balanceado con proporción 2:1
+fotocasa_undersampled <- rbind(minority, majority_sample)
+
+# 5. Verificar proporción resultante
+kable(table(fotocasa_undersampled$binaryDrop))
+```
+```{r}
+set.seed(100)
+fotocasa_undersampled$binaryDrop = factor(fotocasa_undersampled$binaryDrop)
+trainFilas = createDataPartition(fotocasa_undersampled$binaryDrop, p=0.8, list=FALSE)
+head(trainFilas) # trainFilas contiene los números de las filas que irán a Train
+```
+```{r}
+trainDatos = fotocasa_undersampled[trainFilas,] 
+testDatos = fotocasa_undersampled[-trainFilas,]
+num = table(trainDatos$binaryDrop)
+perc = round(100*num/sum(num), 2)
+kable(cbind(num, perc))
+```
+```{r}
+myTrainControl = trainControl(method = "repeatedcv",  # k-fold
+                              number = 10,  # num folds
+                              repeats = 30) # num veces a repetir CV
+
+```
+
+
+
+
+
+
+
+
+```{r}
+set.seed(100)
+
+trainDatosESC <- trainDatos
+
+# Identificar las columnas numéricas (excluyendo la variable objetivo)
+vars_escalar <- setdiff(names(trainDatos), "binaryDrop")
+vars_numericas <- vars_escalar[sapply(trainDatos[, vars_escalar], is.numeric)]
+
+# Escalar solo las columnas numéricas
+trainDatosESC[, vars_numericas] <- scale(trainDatos[, vars_numericas]) 
+# Entrenar el modelo LDA
+
+modeloTR <- train(binaryDrop ~ ., data = trainDatosESC, method = 'lda',
+                  trControl = myTrainControl,
+                  preProcess = c("zv","pca")  # ← Esto elimina automáticamente columnas sin varianza en cada fold
+                  )
+modeloTR 
+```
+
+```{r}
+
+
+# 1. Filtrar solo variables numéricas
+datos_numericos <- trainDatosESC[, sapply(trainDatosESC, is.numeric)]
+
+# 2. Calcular matriz de correlación
+cor_matrix <- cor(datos_numericos, use = "pairwise.complete.obs")
+
+# 3. Definir umbral de correlación
+umbral <- 0.6
+
+# 4. Encontrar pares altamente correlacionados (cor > umbral y < 1)
+pares_correlados <- which(abs(cor_matrix) > umbral & abs(cor_matrix) < 1, arr.ind = TRUE)
+
+# 5. Evitar duplicados (porque la matriz es simétrica)
+pares_correlados <- pares_correlados[pares_correlados[,1] < pares_correlados[,2], ]
+
+# 6. Mostrar resultados
+cat("📌 Variables altamente correlacionadas (|cor| >", umbral, "):\n\n")
+for (i in seq_len(nrow(pares_correlados))) {
+  var1 <- rownames(cor_matrix)[pares_correlados[i, 1]]
+  var2 <- colnames(cor_matrix)[pares_correlados[i, 2]]
+  cor_val <- cor_matrix[pares_correlados[i, 1], pares_correlados[i, 2]]
+  cat(sprintf("🔗 %s  ~  %s  |  correlación = %.3f\n", var1, var2, cor_val))
+}
+
+
+```
+
+
+
+
+
+
+
