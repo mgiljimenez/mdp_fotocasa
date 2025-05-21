@@ -9,18 +9,26 @@ library(caret)
 # http://topepo.github.io/caret/index.html
 library(MASS) # Para el análisis discriminante
 library(readxl)
+library(fastDummies)
+
 library(dplyr)
 ```
 
-```{r}
+```{r datos}
 fotocasa = read_excel("fotocasaImp.xlsx")
 # Crear la nueva columna binaryDrop
 fotocasa$binaryDrop <- ifelse(fotocasa$priceAmountDrop > 0, 1, 0)
 
-# Verificar resultado
-head(fotocasa)
+
+# Mostrar el dataframe resultante
+colnames(fotocasa)
 ```
-```{r}
+
+
+En este analisis, intentaremos aplicar la funcion lineal de fisher para predecir, en función de sus características, qué inmuebles bajarán de precio. Lo haremos creando binaryDrop a partir de la variable numérica priceAmountDrop.Los valores de esta nueva variable serán 0 si priceAmountDrop=0 y 1 en el caso contrario (el precio ha bajado recientemente). Consideraremos positivo binaryDrop=1.
+Puesto que las clases se encuentran severamente desbalanceadas (únicamente un 14% de la muestra han bajado de precio), aplicaremos un undersampling para conseguir una proporción 2:1, quedándonos con todos los positivos y parte de los negativos.
+
+```{r selección_variables}
 
 # Convertir variables categóricas a factor
 data <- fotocasa %>%
@@ -30,7 +38,8 @@ data <- fotocasa %>%
     tieneAscensor = as.factor(tieneAscensor),
     tieneTrastero = as.factor(tieneTrastero),
     tieneCalefaccion = as.factor(tieneCalefaccion),
-    tieneAireAcondicionado = as.factor(tieneAireAcondicionado)
+    tieneAireAcondicionado = as.factor(tieneAireAcondicionado),
+    propertySubtypeId=as.factor(propertySubtypeId)
   )
 
 # Seleccionar variables relevantes
@@ -44,18 +53,70 @@ fotocasa <- data %>%
          tieneTrastero,
          tieneCalefaccion,
          tieneAireAcondicionado,
+         neighborhood,  # puedes cambiar por municipality si lo prefieres
+         priceAmount,
+         priceDescription_buy,
+         priceDescription_rent,
+         propertySubtypeId,
+         hospital_count,
          supermarket_count,
          pharmacy_count,
-         hospital_count,
          university_count,
          college_count,
-         public_transport_count,
-         neighborhood,  # puedes cambiar por municipality si lo prefieres
+         public_transport_count
+         
          )
 head(fotocasa)
 ```
+```{r dummies}
+library(caret)
+
+# Especifica tus columnas categóricas nominales
+categoricas <- c("propertySubtypeId", "neighborhood")
+fotocasa <- dummy_cols(fotocasa,
+                       select_columns = categoricas,
+                       remove_first_dummy = TRUE,
+                       remove_selected_columns = TRUE)
+
+# 3. Detectar columnas dummy recién creadas (basado en nombres)
+cols_dummies <- grep(paste0("^(", paste(categoricas, collapse = "|"), ")_"), names(fotocasa), value = TRUE)
+
+# 4. Convertir esas columnas de 0/1 a factores con niveles "0", "1"
+fotocasa[cols_dummies] <- lapply(fotocasa[cols_dummies], function(x) factor(x, levels = c(0, 1)))
+```
+
 
 ```{r}
+# Transformaciones logarítmicas para corregir asimetría positiva (sobrescribiendo variables)
+fotocasa$priceDescription_rent <- log1p(fotocasa$priceDescription_rent)
+fotocasa$priceDescription_buy <- log1p(fotocasa$priceDescription_buy)
+fotocasa$supermarket_count <- log1p(fotocasa$supermarket_count)
+fotocasa$pharmacy_count <- log1p(fotocasa$pharmacy_count)
+fotocasa$hospital_count <- log1p(fotocasa$hospital_count)
+fotocasa$university_count <- log1p(fotocasa$university_count)
+fotocasa$college_count <- log1p(fotocasa$college_count)
+fotocasa$public_transport_count <- log1p(fotocasa$public_transport_count)
+fotocasa$priceAmount <- log1p(fotocasa$priceAmount)
+
+
+# Graficar densidades transformadas
+
+plot(density(fotocasa$priceDescription_rent), main = "precio/80m2 (Raíz)", col = "red3", lwd = 2, xlab = "priceDescription_rent_sqrt")
+plot(density(fotocasa$priceDescription_buy), main = "precio/80m2 (Raíz)", col = "brown", lwd = 2, xlab = "priceDescription_buy_sqrt")
+plot(density(fotocasa$supermarket_count), main = "supermercados cercanos (Raíz)", col = "blue1", lwd = 2, xlab = "supermarket_count_sqrt")
+plot(density(fotocasa$pharmacy_count), main = "farmacias cercanas (Raíz)", col = "green2", lwd = 2, xlab = "pharmacy_count_sqrt")
+plot(density(fotocasa$hospital_count), main = "hospitales cercanos (Raíz)", col = "yellow2", lwd = 2, xlab = "hospital_count_sqrt")
+plot(density(fotocasa$university_count), main = "universidades cercanas (Raíz)", col = "orange", lwd = 2, xlab = "university_count_sqrt")
+plot(density(fotocasa$college_count), main = "colegios cercanos (Raíz)", col = "purple", lwd = 2, xlab = "college_count_sqrt")
+plot(density(fotocasa$public_transport_count), main = "Estaciones transporte cercanas (Raíz)", col = "pink2", lwd = 2, xlab = "public_transport_count_sqrt")
+plot(density(fotocasa$priceAmount), main = "precio (Raíz)", col = "black", lwd = 2, xlab = "precioAmount_sqrt")
+
+# Restaurar la configuración de gráficos a la normalidad
+par(mfrow = c(1, 1))
+
+```
+
+```{r undersampling}
 # 1. Separar las clases
 minority <- fotocasa[fotocasa$binaryDrop == 1, ]
 majority <- fotocasa[fotocasa$binaryDrop == 0, ]
@@ -74,20 +135,28 @@ fotocasa_undersampled <- rbind(minority, majority_sample)
 # 5. Verificar proporción resultante
 kable(table(fotocasa_undersampled$binaryDrop))
 ```
-```{r}
+
+Una vez seleccionada la base de datos sobre la que aplicaremos el análisis, dividimos las observaciones en un 80% de datos de entrenamiento y 20% de datos de test.
+
+```{r separacion_datos}
 set.seed(100)
 fotocasa_undersampled$binaryDrop = factor(fotocasa_undersampled$binaryDrop)
 trainFilas = createDataPartition(fotocasa_undersampled$binaryDrop, p=0.8, list=FALSE)
 head(trainFilas) # trainFilas contiene los números de las filas que irán a Train
 ```
-```{r}
+
+
+```{r train_test}
 trainDatos = fotocasa_undersampled[trainFilas,] 
 testDatos = fotocasa_undersampled[-trainFilas,]
 num = table(trainDatos$binaryDrop)
 perc = round(100*num/sum(num), 2)
 kable(cbind(num, perc))
 ```
-```{r}
+
+Para entrenar el modelo, realizaremos la validación cruzada mediante el método k-folds repetido. Las observaciones se dividirán en k=10 grupos y todo el proceso se repetirá r=30 veces.
+
+```{r kfolds}
 myTrainControl = trainControl(method = "repeatedcv",  # k-fold
                               number = 10,  # num folds
                               repeats = 30) # num veces a repetir CV
@@ -96,12 +165,7 @@ myTrainControl = trainControl(method = "repeatedcv",  # k-fold
 
 
 
-
-
-
-
-
-```{r}
+```{r modelo_lda}
 set.seed(100)
 
 trainDatosESC <- trainDatos
@@ -121,7 +185,14 @@ modeloTR <- train(binaryDrop ~ ., data = trainDatosESC, method = 'lda',
 modeloTR 
 ```
 
-```{r}
+
+El índice de Kappa del modelo planteado es relativamente bajo; señal de un modelo pobre con poca capacidad predictiva. La variable binaryDrop está muy condicionada por el factor humano y las necesidades y/o intereses individuales del propietario. Puede ser que estas características la vuelvan una variable de naturaleza impredecible. Sin embargo, queda planteada la idea y no descartamos repetir el análisis en estudios posteriores; con variables más adecuadas para discriminar la bajada de los precios.
+
+
+
+
+
+```{r intento_mejora}
 
 
 # 1. Filtrar solo variables numéricas
@@ -140,7 +211,7 @@ pares_correlados <- which(abs(cor_matrix) > umbral & abs(cor_matrix) < 1, arr.in
 pares_correlados <- pares_correlados[pares_correlados[,1] < pares_correlados[,2], ]
 
 # 6. Mostrar resultados
-cat("📌 Variables altamente correlacionadas (|cor| >", umbral, "):\n\n")
+cat(" Variables altamente correlacionadas (|cor| >", umbral, "):\n\n")
 for (i in seq_len(nrow(pares_correlados))) {
   var1 <- rownames(cor_matrix)[pares_correlados[i, 1]]
   var2 <- colnames(cor_matrix)[pares_correlados[i, 2]]
