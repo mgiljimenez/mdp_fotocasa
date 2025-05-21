@@ -97,6 +97,18 @@ colores2 = pal_npg("nrc")(6)
 par(mfrow = c(1,2))
 plot(silhouette(gruposWARD, midist_gower), col=colores, border=NA, main = "WARD")
 plot(silhouette(clustPAM$clustering, midist_gower), col=colores2, border=NA, main = "K-MEDIOIDES")
+<<<<<<< HEAD
+fotocasaConfort$cluster=clustPAM$clustering
+```
+
+
+
+```{r pca_confort}
+clustPAM=factor(clustPAM$clustering)
+fotocasaConfort$priceAmount=fotocasa$priceAmount
+fotocasaConfort
+miPCA = PCA(fotocasaConfort, scale.unit = TRUE, graph = FALSE, ncp=2, quanti.sup="priceAmount", quali.sup="cluster")
+=======
 fotocasaConfort$cluster=gruposWARD
 ```
 ```{r pca_confort}
@@ -104,16 +116,26 @@ gruposWARD=factor(gruposWARD)
 fotocasaConfort$priceAmount=fotocasa$priceAmount
 fotocasaConfort
 miPCA = PCA(fotocasaConfort, scale.unit = TRUE, graph = FALSE, ncp=2, quanti.sup=fotocasaConfort$priceAmount, quali.sup=fotocasaConfort$cluster)
+>>>>>>> 626ffd02ac0c205d68f91fb349ad71e2bdd0b288
 eig.val = get_eigenvalue(miPCA)
 Vmedia = 100 * (1/nrow(eig.val))
 fviz_eig(miPCA, addlabels = TRUE) +
   geom_hline(yintercept=Vmedia, linetype=2, color="red")
+<<<<<<< HEAD
+```
+
+```{r pca_confort_GRAFICOS}
+p1 <- fviz_pca_ind(miPCA,
+                   geom = "point",
+                   habillage = clustPAM,
+=======
 
 ```
 ```{r pca_confort_GRAFICOS}
 p1 <- fviz_pca_ind(miPCA,
                    geom = "point",
                    habillage = gruposWARD,
+>>>>>>> 626ffd02ac0c205d68f91fb349ad71e2bdd0b288
                    addEllipses = TRUE,
                    palette = "jco",
                    title = "Score plot: individuos")
@@ -127,6 +149,25 @@ p2 <- fviz_pca_var(miPCA,
 grid.arrange(p1, p2, nrow = 1)
 ```
 ```{r mediasConfort}
+<<<<<<< HEAD
+# Calculamos medias por cluster
+mediasCluster <- aggregate(fotocasaConfort, by = list("cluster" = clustPAM), mean)[, -1]
+rownames(mediasCluster) <- paste0("c", 1:nrow(mediasCluster))
+
+# Escalamos cada variable (columna) para que tengan media 0 y sd 1
+mediasClusterEscalada <- scale(mediasCluster)
+
+# Graficamos los perfiles escalados
+matplot(t(mediasClusterEscalada), type = "l", col = colores2, lwd = 2, lty = 1,
+        main = "Perfil medio escalado de los clusters", xaxt = "n",
+        ylab = "Valor estandarizado")
+
+axis(side = 1, at = 1:ncol(fotocasaConfort), labels = colnames(fotocasaConfort), las = 2)
+
+legend("topleft", legend = paste0("Cluster ", 1:nrow(mediasClusterEscalada)),
+       col = colores2, lwd = 2, ncol = 3, bty = "n")
+
+=======
 mediasCluster = aggregate(fotocasaConfort, by = list("cluster" = gruposWARD), mean)[,-1]
 mediasCluster
 rownames(mediasCluster) = paste0("c",1:6)
@@ -134,6 +175,7 @@ matplot(t(mediasCluster), type = "l", col = colores, ylab = "", xlab = "", lwd =
         lty = 1, main = "Perfil medio de los clusters", xaxt = "n")
 axis(side = 1, at = 1:ncol(fotocasaConfort), labels = colnames(fotocasaConfort), las = 2)
 legend("topleft", as.character(1:6), col = colores, lwd = 2, ncol = 3, bty = "n")
+>>>>>>> 626ffd02ac0c205d68f91fb349ad71e2bdd0b288
 
 ```
 ```{r}
@@ -257,6 +299,77 @@ fotocasaServicios$cluster=clustMEANS$cluster
 fotocasaServicios
 ```
 ```{r}
+<<<<<<< HEAD
+clustMEDIAS=factor(clustMEANS$cluster)
+miPCA2 = PCA(fotocasaServicios, scale.unit = TRUE, graph = FALSE, ncp=2, quanti.sup="priceAmount", quali.sup="cluster")
+eig.val = get_eigenvalue(miPCA)
+Vmedia = 100 * (1/nrow(eig.val))
+fviz_eig(miPCA2, addlabels = TRUE) +
+  geom_hline(yintercept=Vmedia, linetype=2, color="red")
+```
+```{r}
+p1 <- fviz_pca_ind(miPCA2,
+                   geom = "point",
+                   habillage = clustMEDIAS,
+                   palette = "jco",
+                   title = "Score plot: individuos")
+# Loading plot (variables activas)
+p2 <- fviz_pca_var(miPCA2,
+                   col.var = "contrib", # Color según contribución a los ejes
+                   gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+                   repel = TRUE,
+                   title = "Loading plot: variables")
+# Mostrar ambos juntos
+grid.arrange(p1, p2, nrow = 1)
+```
+
+
+
+```{r}
+# Añadir el cluster a tu dataframe original
+library(ggplot2)
+library(leaflet)
+ggplot() +
+  geom_point(aes(x = fotocasa$lng,
+                 y = fotocasa$lat,
+                 color = factor(fotocasaServicios$cluster)),
+             size = 2, alpha = 0.7) +
+  labs(title = "Clustering geográfico de inmuebles",
+       x = "Longitud", y = "Latitud", color = "Cluster") +
+  theme_minimal()
+```
+```{r}
+library(leaflet)
+library(RColorBrewer)
+# Crear paleta con colores diferenciados
+pal <- colorFactor(palette = "Set1", domain = fotocasaServicios$cluster)
+# Verificamos que 'df_coords' tenga las columnas adecuadas
+if("lat" %in% colnames(fotocasa) && "lng" %in% colnames(fotocasa)) {
+  leaflet(fotocasa) %>%
+    addTiles() %>%
+    addCircleMarkers(
+      lng = ~lng,
+      lat = ~lat,
+      color = ~pal(fotocasaServicios$cluster),
+      radius = 5,
+      stroke = FALSE,
+      fillOpacity = 0.8
+    ) %>%
+    addLegend("bottomright", pal = pal, values = fotocasaServicios$cluster,
+              title = "Clusters") %>%
+    setView(lng = mean(fotocasa$lng),
+            lat = mean(fotocasa$lat),
+            zoom = 13)
+} else {
+  print("Faltan las columnas 'latitud' o 'longitud' en el dataframe.")
+}
+```
+
+
+```{r pca_servicios}
+clustMEANS$cluster=factor(clustMEANS$cluster)
+miPCA = PCA(fotocasaServiciosCE, scale.unit = FALSE, graph = FALSE, ncp=2, quanti.sup="priceAmount")
+=======
 # Añadir el cluster a tu dataframe original
 library(ggplot2)
 library(leaflet)
@@ -300,6 +413,7 @@ if("lat" %in% colnames(fotocasa) && "lng" %in% colnames(fotocasa)) {
 ```{r pca_servicios}
 clustMEANS$cluster=factor(clustMEANS$cluster)
 miPCA = PCA(fotocasaServiciosCE, scale.unit = FALSE, graph = FALSE, ncp=2)
+>>>>>>> 626ffd02ac0c205d68f91fb349ad71e2bdd0b288
 eig.val = get_eigenvalue(miPCA)
 Vmedia = 100 * (1/nrow(eig.val))
 fviz_eig(miPCA, addlabels = TRUE) +
