@@ -101,15 +101,15 @@ fotocasa$priceAmount <- log1p(fotocasa$priceAmount)
 
 # Graficar densidades transformadas
 
-plot(density(fotocasa$priceDescription_rent), main = "precio/80m2 (Raíz)", col = "red3", lwd = 2, xlab = "priceDescription_rent_sqrt")
-plot(density(fotocasa$priceDescription_buy), main = "precio/80m2 (Raíz)", col = "brown", lwd = 2, xlab = "priceDescription_buy_sqrt")
-plot(density(fotocasa$supermarket_count), main = "supermercados cercanos (Raíz)", col = "blue1", lwd = 2, xlab = "supermarket_count_sqrt")
-plot(density(fotocasa$pharmacy_count), main = "farmacias cercanas (Raíz)", col = "green2", lwd = 2, xlab = "pharmacy_count_sqrt")
-plot(density(fotocasa$hospital_count), main = "hospitales cercanos (Raíz)", col = "yellow2", lwd = 2, xlab = "hospital_count_sqrt")
-plot(density(fotocasa$university_count), main = "universidades cercanas (Raíz)", col = "orange", lwd = 2, xlab = "university_count_sqrt")
-plot(density(fotocasa$college_count), main = "colegios cercanos (Raíz)", col = "purple", lwd = 2, xlab = "college_count_sqrt")
-plot(density(fotocasa$public_transport_count), main = "Estaciones transporte cercanas (Raíz)", col = "pink2", lwd = 2, xlab = "public_transport_count_sqrt")
-plot(density(fotocasa$priceAmount), main = "precio (Raíz)", col = "black", lwd = 2, xlab = "precioAmount_sqrt")
+plot(density(fotocasa$priceDescription_rent), main = "precio/80m2 (log)", col = "red3", lwd = 2, xlab = "priceDescription_rent_sqrt")
+plot(density(fotocasa$priceDescription_buy), main = "precio/80m2 (log)", col = "brown", lwd = 2, xlab = "priceDescription_buy_sqrt")
+plot(density(fotocasa$supermarket_count), main = "supermercados cercanos (log)", col = "blue1", lwd = 2, xlab = "supermarket_count_sqrt")
+plot(density(fotocasa$pharmacy_count), main = "farmacias cercanas (log)", col = "green2", lwd = 2, xlab = "pharmacy_count_sqrt")
+plot(density(fotocasa$hospital_count), main = "hospitales cercanos (log)", col = "yellow2", lwd = 2, xlab = "hospital_count_sqrt")
+plot(density(fotocasa$university_count), main = "universidades cercanas (log)", col = "orange", lwd = 2, xlab = "university_count_sqrt")
+plot(density(fotocasa$college_count), main = "colegios cercanos (log)", col = "purple", lwd = 2, xlab = "college_count_sqrt")
+plot(density(fotocasa$public_transport_count), main = "Estaciones transporte cercanas (log)", col = "pink2", lwd = 2, xlab = "public_transport_count_sqrt")
+plot(density(fotocasa$priceAmount), main = "precio (log)", col = "black", lwd = 2, xlab = "precioAmount_sqrt")
 
 # Restaurar la configuración de gráficos a la normalidad
 par(mfrow = c(1, 1))

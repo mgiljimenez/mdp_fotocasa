@@ -10,6 +10,8 @@ library(factoextra)
 library(NbClust)
 library(clValid)
 ```
+
+
 ```{r datos}
 library(readxl)
 fotocasa = read_excel("fotocasaImp.xlsx")
@@ -21,6 +23,8 @@ clustering 2 -> basado en servicios del barrio (posible agrupación por barrios,
 para solventar los valores faltantes en el pca) (variables: supermarket_count,
 pharmacy_count, hospital_count, university_count, college_count,
 public_transport_count)
+
+
 ```{r tabla}
 # Vector con nombres de todas las columnas
 columnas= colnames(fotocasa)
@@ -50,6 +54,9 @@ fotocasaConfort = fotocasa[,tabla$Confort == 1]
 head(fotocasaConfort)
 fotocasaConfortCE = scale(fotocasaConfort, center = TRUE, scale = TRUE)
 ```
+
+
+
 ```{r heatmap_confort_gower}
 help(get_dist)
 #distancia GOWER
@@ -58,16 +65,16 @@ fviz_dist(midist_gower, show_labels = TRUE, lab_size = 0.3,
           gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 ```
 
+
+
 ```{r confort_metodoWard}
 library(grid)
 library(gridExtra)
 help("fviz_nbclust")
 p1 = fviz_nbclust(x = fotocasaConfortCE, FUNcluster = hcut, diss=midist_gower,
-                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,
-                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE) + labs(title = "Num. optimo clusters")
 p2 = fviz_nbclust(x = fotocasaConfortCE, FUNcluster = hcut, method = "wss",
-                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,diss=midist_gower,
-                  hc_metric = "manhattan") + labs(title = "Num. optimo clusters")
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,diss=midist_gower) + labs(title = "Num. optimo clusters")
 grid.arrange(p1, p2, nrow = 1)
 ```
 
