@@ -1,0 +1,58 @@
+---
+title: "pls_v1"
+output: html_document
+date: "2025-05-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+library(readxl)
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+   install.packages("BiocManager")
+ BiocManager::install("ropls")
+library(ropls)
+
+library(viridis)
+library(patchwork)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+
+library(readxl)
+fotocasa = read_excel("fotocasaImp.xlsx")
+fotocasa <- as.data.frame(fotocasa)
+
+rownames(fotocasa) <- fotocasa[[1]]
+variables <- fotocasa[, c(9,10,11,13,14,15,16,17,18,19,21,22,23,24,25,26,27,28,29,30,31, 32, 33)]
+```
+
+## 1.2 Estimación del modelo y optimización del número de componentes
+
+```{r}
+# Definir variables predictoras y variable objetivo
+X <- variables[, !(names(variables) %in% c("priceAmount", "priceAmountDrop"))]  # Excluir "Precio"
+Y <- variables$priceAmount  # Variable objetivo
+```
+
+Escalamos tanto la matriz Y como la X
+
+```{r Estimación del modelo y optimización del número de componentes}
+
+mypls = opls(x = X, y = Y, predI = NA, crossvalI = nrow(X), scaleC = "standard",
+             fig.pdfC = "none")
+```
+
+```{r}
+maxNC = min(dim(X)); maxNC
+
+myplsC = opls(x = X, y = Y, predI = maxNC, crossvalI = nrow(X), 
+              scaleC = "standard", fig.pdfC = "none")
+```
