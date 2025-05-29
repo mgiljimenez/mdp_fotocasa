@@ -42,7 +42,8 @@ X <- variables[, !(names(variables) %in% c("priceAmount", "priceAmountDrop"))]  
 Y <- variables$priceAmount  # Variable objetivo
 ```
 
-Escalamos tanto la matriz Y como la X
+Escalamos tanto la matriz Y como la X.
+Estimaremos el número de componentes óptimo mediante validación cruzada. En este caso, al tener un número tan alto de observaciones, optaremos por el procedimiento "k-fold", en nuestro caso generaremos 10 folds.
 
 ```{r Estimación del modelo y optimización del número de componentes}
 
@@ -50,9 +51,50 @@ mypls = opls(x = X, y = Y, predI = NA, crossvalI = 10, scaleC = "standard",
              fig.pdfC = "none")
 ```
 
+De acuerdo con el criterio de la función *opls*, el número óptimo de componentes sería 1. No obstante, vamos a generar nuestro propio gráfico para estimar mejor el número óptimo de componentes del modelo:
+
+
+
 ```{r}
-maxNC = min(dim(X)); maxNC
+maxNC = min(dim(X))
 
 myplsC = opls(x = X, y = Y, predI = maxNC, crossvalI = 10, # Validación cruzada con 10 folds (k-fold)
               scaleC = "standard", fig.pdfC = "none")
 ```
+```{r Gráfico de Q^2 y R^2}
+## Este chunk hay que ejecutarlo todo de una, paso a paso da error.
+
+# mypls@modelDF  ## Para recuperar la información de cada componente
+plot(1:maxNC, myplsC@modelDF$`R2Y(cum)`, type = "o", pch = 16, col = "blue3",
+     lwd = 2, xlab = "Components", ylab = "", ylim = c(0.4,0.6),
+     main = "PLS model")
+lines(1:maxNC, myplsC@modelDF$`Q2(cum)`, type = "o", pch = 16, col = "red3",
+      lwd = 2)
+abline(h = 0.525, col = "red3", lty = 2)
+legend("bottomleft", c("R2Y", "Q2"), lwd = 2, 
+       col = c("blue3", "red3"), bty = "n")
+```
+En el gráfico anterior podemos observar que con hasta 4 componentes el valor de $Q^2$ aumenta a la vez que el valor de $R^2$. Sin embargo a partir de 5 componentes $Q^2$ empieza a disminuir ligeramente y $R^2$ se mantiene prácticamente constante.
+
+Así pues, parece más adecuado seleccionar 4 componentes. Generamos a continuación el modelo con 4 componentes.
+
+```{r selComps2, echo = TRUE, message = FALSE, warning=FALSE}
+A <- 4
+mypls = opls(x = X, y = Y, predI = A, crossvalI = 10, scaleC = "standard")
+# plot(mypls)  ## Para recuperar los gráficos que la función opls genera por defecto
+```
+
+El siguiente código muestra cómo extraer información relevante del modelo, que se puede utilizar para generar gráficas personalizadas (como veremos a continuación en algún ejemplo) o para realizar otros análisis.
+
+```{r model1, echo = TRUE, message = FALSE, warning=FALSE}
+mypls@vipVn  # VIP
+mypls@coefficientMN  # Coeficientes de regresión (B)
+# mypls@scoreMN # scores X (T)
+# mypls@loadingMN # loadings X (P)
+# mypls@weightMN # weights X (W)
+# mypls@weightStarMN # weights X (W*)
+# mypls@cMN # weights Y (C)
+# mypls@uMN # scores Y (U)
+```
+
+
