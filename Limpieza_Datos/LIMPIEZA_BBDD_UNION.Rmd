@@ -17,7 +17,6 @@ Cargamos los datos en crudo (data_raw)
 
 ```{r setup}
 knitr::opts_chunk$set(echo = TRUE)
-
 library(readxl)
 library(openxlsx)
 data_raw = read_excel("datos_scraping.xlsx")  
