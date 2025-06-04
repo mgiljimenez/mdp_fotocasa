@@ -68,12 +68,16 @@ Probamos todas las distancias para variables numéricas disponibles y, finalment
 En el mapa resultante, se observan ciertos subgrupos alrededor de la diagonal principal; aunque sería necesario efectuar el clustering para identificar estructuras más claras.
 
 .
-```{r heatmap, fig.align='center', fig.height=2, fig.width=3}
+```{r heatmap, fig.align='center', out.width="50%"}
 fotocasaServicios = fotocasa[,tabla$Servicios == 1]
 fotocasaServiciosCE = scale(fotocasaServicios, center = TRUE, scale = TRUE)
 midist_eu <- get_dist(fotocasaServiciosCE, stand = FALSE, method = "euclidean")
-fviz_dist(midist_eu, show_labels = TRUE, lab_size = 0.3,
-          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+#fviz_dist(midist_eu, show_labels = TRUE, lab_size = 0.3,
+          #gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+knitr::include_graphics("heatmap_distancias.png")
+
+
+
 ```
 
 Como punto de partida, iniciamos el análisis probando varias técnicas de agrupamiento: el método jerárquico de Ward y los de partición k-medias y k-medioides. En los tres casos, analizamos simultáneamente la suma de cuadrados residual y el coeficiente de Silhouette para determinar el número óptimo de subgrupos.
@@ -188,6 +192,7 @@ A partir de la información obtenida en el mapa, hemos diseñado la siguiente cl
 library(dplyr)
 library(ggplot2)
 
+# Datos base
 clasificacion <- data.frame(
   Cluster = paste("Clúster", 1:7),
   Zona = c(
@@ -202,16 +207,21 @@ clasificacion <- data.frame(
   Color = c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33", "#A65628")
 )
 
-ggplot(clasificacion, aes(x = 1, y = reorder(Zona, Cluster), fill = Cluster)) +
-  geom_tile(width = 0.8, height = 0.8, aes(fill = Cluster), show.legend = FALSE) +  # ⬅ más ancho
-  geom_text(aes(label = Cluster), color = "white", fontface = "bold", size = 4) +    # mejor tamaño
-  geom_text(aes(x = 2, label = Zona), color = "black", hjust = 0, size = 4) +        # texto desplazado
+# Extraer número de clúster para ordenar
+clasificacion$Num <- as.numeric(gsub("[^0-9]", "", clasificacion$Cluster))
+
+# Ordenar por número de clúster
+clasificacion <- clasificacion[order(clasificacion$Num), ]
+
+# Crear gráfico con orden correcto
+ggplot(clasificacion, aes(x = 1, y = factor(Zona, levels = rev(Zona)), fill = Cluster)) +
+  geom_tile(width = 0.8, height = 0.8, show.legend = FALSE) +
+  geom_text(aes(label = Cluster), color = "white", fontface = "bold", size = 4) +
+  geom_text(aes(x = 2, label = Zona), color = "black", hjust = 0, size = 4) +
   scale_fill_manual(values = clasificacion$Color) +
   theme_void() +
   coord_cartesian(clip = "off") +
   xlim(0.5, 3.5)
-
-
 
 ```
 En este punto, podemos aplicar las conclusiones extraídas del análisis a zonas reales y conocidas de nuestra ciudad. Por ejemplo, las zonas mejor ubicadas y con mejores prestaciones serían Ruzafa, Jesús y Benicalap. Paralelamente, entre el Centro histórico, pedanías y parte zona universitaria encontramos una ecléctica gama de viviendas, unas pocas  más exclusivas y la mayoría restante con comunicaciones bastante mejorables (posiblemente las ubicadas en las afueras de la ciudad). Los clusters 5 y 7, que en el PCA aparecían altamente relacionados con la variable *university_count* se corresponden con los sectores de Aragón, Blasco y Tarongers.
