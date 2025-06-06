@@ -1,0 +1,130 @@
+---
+title: 'AFC Simple: SubTipo vs. Precio'
+author: "Fátima Taberner"
+output:
+  pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r librerias, include=FALSE}
+library(readxl)
+library(knitr)
+library(FactoMineR)
+library(corrplot)
+library(gridExtra)
+if (!require(factoextra)) install.packages("factoextra")
+library(factoextra)
+```
+
+```{r datos, include=FALSE}
+afc_fotocasa = read_excel("data_clean1.xlsx")
+```
+# AFC simple: Subtipo y Precio
+Además de este AFC simple se ha realizado también otro AFC con las variables Municipio y Precio, sin embargo como el clustering aporta más información que el AFC sobre dichas variables se ha decidido dejarlo en Anexos como consulta en lugar de presentarlo en el proyecto.
+
+**Justificación del análisis AFC**: el AFC entre tipo de vivienda y precio permite descubrir patrones entre categorías de vivienda (como áticos o pisos) y los rangos de precios en que suelen encontrarse. Por ello, se ha optado por realizar un AFC sobre estas variables.
+
+Con el fin de realizar un Análisis Factorial de Correspondencias sobre las variables "Subtipo" y "Precio" se han realizado transformaciones previas sobre dichas variables para poder realizar el AFC. La variable "Subtipo" se ha mapeado para traducir los códigos de propertySubtypeId a nombres descriptivos. Por otro lado, el Precio se ha transformado a 6 categorías ordinales clasificándolo de precio muy bajo a precio muy alto.
+```{r map_subtipo, include=FALSE}
+# Diccionario para traducir los códigos de propertySubtypeId a nombres descriptivos
+subtype_map <- c("1" = "Piso",
+                 "2" = "Apartamento",
+                 "3" = "Casa o chalet",
+                 "5" = "Casa adosada",
+                 "6" = "Ático",
+                 "7" = "Dúplex",
+                 "8" = "Loft",
+                 "52" = "Bajos",
+                 "54" = "Estudio",
+                 "10" = "Otros")
+# Aplicar el mapeo
+afc_fotocasa$propertySubtypeCat <- subtype_map[as.character(afc_fotocasa$propertySubtypeId)]
+```
+
+```{r trans_precio, include=FALSE}
+# Crear categorías ordinales de precio con cuantiles
+afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
+                                  breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
+                                  include.lowest = TRUE,
+                                  labels = c("Muy Bajo", "Bajo", "Medio Bajo", "Medio Alto", "Alto", "Muy Alto")
+                                  )
+```
+
+En los siguientes gráficos se puede observar la distribución de las viviendas según el suptipo y su precio. Según el precio, la distribución es uniforme, lo que indica que existe aproximadamente la misma cantidad de viviendas para todas las categorías de precio. Sin embargo, la distribución según el Subtipo indica que la mayoría de viviendas se clasifican en "Piso", el siguiente subtipo de vivienda más numeroso es "Apartamento", aunque representa cinco veces menos viviendas que "Piso".
+```{r gráficos, echo=FALSE, fig.align='center', fig.height=4, fig.width=8}
+# Distribución del número de viviendas por subtipo
+barplot(table(afc_fotocasa$propertySubtypeCat),
+        col = "lightgreen",
+        main = "Viviendas por Subtipo",
+        ylab = "Número de viviendas")
+# Distribución del número de viviendas por categoría de precio
+barplot(table(afc_fotocasa$priceCategory),
+        col = "lightgreen",
+        main = "Viviendas por Precio",
+        ylab = "Número de viviendas")
+```
+
+## Dependencia entre Subtipo y Precio
+Con el fin de contrastar la hipótesis nula de independencia entre ambas variables, se aplicará un test de independencia $\chi^2$. Para ello se genera la tabla de contingencia de Subtipo y Precio, y se aplica el test.
+
+```{r, echo=FALSE}
+# Tabla de contingencia Subtipo vs Categoría de Precio
+tabla_subtipo_precio <- table(afc_fotocasa$propertySubtypeCat, afc_fotocasa$priceCategory)
+# Mostrar tabla
+tabla_subtipo_precio
+# Test Chi-cuadrado para evaluar independencia
+chisq.test(tabla_subtipo_precio, simulate.p.value = TRUE)
+```
+Como resultado se obtiene un p-valor de 0,0005, por lo que se rechaza la hipótesis nula y se concluye que existe una dependencia estadísticamente significativa entre el subtipo de vivienda y el precio. Así pues, tiene sentido que estudiemos la naturaleza y causas de dicha dependencia con un AFC simple.
+
+## Análisis Factorial de Correspondencias
+A continuación se realiza el AFC comenzando por la seleccíon del número de componentes. Según el siguiente gráfico se puede ver que la primera componente ya explica un 83,3% de la inercia total de la tabla de contingencia, mientras que la segunda solo explica un 13,4%, claramente por debajo de la inercia media teórica (aproximadamente el 32%). Por tanto se elegiría solo la primera componente, no obstante, se elgiran las dos primeras para poder generar los gráficos de filas y columnas para poder interpretar el AFC no dándole importancia a la segunda componente.
+
+```{r, echo=FALSE, fig.align='center', fig.height=4, fig.width=3.5}
+afc_subtipo = CA(tabla_subtipo_precio, graph = FALSE)
+# Inercia explicada por dimensión
+valores_propios_subtipo = get_eigenvalue(afc_subtipo)
+# Inercia media
+inercia_media_subtipo = 100 * (1 / nrow(valores_propios_subtipo))
+# Gráfico de varianza explicada
+fviz_eig(afc_subtipo, addlabels = TRUE) +
+  geom_hline(yintercept = inercia_media_subtipo, linetype = 2, color = "red") +
+  ggtitle("Varianza Explicada por Componente")
+```
+
+La lectura de los siguientes gráficos se centra exclusivamente en el eje horizontal, ya que es el que explica el mayor porcentaje de la variabilidad (83.3%). Se ignorará, por tanto, la posición en el eje vertical (Dim2).
+
+```{r, echo=FALSE, fig.align='center', fig.height=2, fig.width=3.5}
+afc_subtipo = CA(tabla_subtipo_precio, graph=FALSE, ncp=2)
+# Visualización de subtipos (filas)
+fviz_ca_row(afc_subtipo, axes = c(1, 2), repel = TRUE, col.row = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "Subtipos de Vivienda")
+```
+
+En este gráfico, los subtipos de vivienda se distribuyen sobre la componente 1 de la siguiente forma:
+
+- Ático se posiciona en el extremo derecho de la dimensión, lo que indica una fuerte asociación con precios altos o muy altos.
+
+- Apartamento también se sitúa en el lado derecho, aunque más cerca del centro, lo que sugiere una tendencia a asociarse con precios medio-altos.
+
+- Piso está muy cerca del punto medio, indicando que es un subtipo más neutral, con distribución equilibrada entre categorías de precio.
+
+- Otros se encuentra a la izquierda, lo que puede interpretarse como una asociación con precios más bajos, o como una categoría heterogénea poco alineada con las más caras.
+
+```{r, echo=FALSE, fig.align='center', fig.height=2,5, fig.width=3.5}
+# Visualización de categorías de precio (columnas)
+fviz_ca_col(afc_subtipo, axes = c(1, 2), repel = TRUE, col.col = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "Categorías de Precio")
+```
+
+La posición relativa de las categorías de precio confirma lo observado en el gráfico anterior, al reflejar una simetría respecto al eje principal. Este gráfico muestra cómo las categorías de precio se distribuyen a lo largo de la dimensión 1, revelando su vínculo con los subtipos de vivienda:
+
+- Muy Alto está en el extremo derecho, mostrando una fuerte asociación con subtipos como Ático.
+
+- Alto y Medio Alto también se sitúan en el lado derecho, aunque más cercanos al centro, lo que refleja su relación con subtipos de precio elevado pero no extremos.
+
+- Medio Bajo, Bajo y Muy Bajo están a la izquierda del eje, evidenciando su vinculación con subtipos más económicos o con mayor accesibilidad en el mercado.
+
+Al interpretar ambos gráficos conjuntamente, y centrándonos exclusivamente en la Dimensión 1, se observa un patrón claro y coherente que vincula determinados subtipos de vivienda con categorías específicas de precios. Los subtipos más exclusivos, como el "Ático", se alinean con las categorías más altas de precio, mientras que las categorías de precio más bajo se asocian con subtipos menos definidos o de menor valor. Esta estructura evidencia la existencia de una dimensión principal que organiza las relaciones entre tipo de vivienda y nivel de precios, permitiendo una interpretación robusta del mercado residencial en función de estas variables. La correspondencia entre ambos conjuntos de categorías es clara, especialmente porque la proyección de filas y columnas sobre el eje principal se refleja de manera simétrica.

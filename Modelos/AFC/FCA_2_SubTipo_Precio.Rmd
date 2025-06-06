@@ -1,0 +1,120 @@
+---
+title: "AFC Simple: SubTipo vs. Precio"
+author: "Miguel Gil y Fátima Taberner"
+output:
+  pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librerias necesarias
+
+```{r, echo=FALSE}
+library(readxl)
+library(knitr)
+library(FactoMineR)
+library(corrplot)
+library(gridExtra)
+if (!require(factoextra)) install.packages("factoextra")
+library(factoextra)
+```
+
+# Carga de datos
+
+```{r datos}
+afc_fotocasa = read_excel("data_clean1.xlsx")
+
+# Esta tabla describe el tipo de cada variable. ¿Está ya incluida en otro bloque del proyecto?
+# descFotocasa = data.frame("variable" = colnames(data), "tipo" = c ("text","num","num",rep("cat",4),   "date",rep("cat",2),rep("num",7), rep("bool",4),rep("num",12),"bool"))
+```
+
+# Mapeo del subtipo de propiedad
+
+```{r map_subtipo}
+# Diccionario para traducir los códigos de propertySubtypeId a nombres descriptivos
+subtype_map <- c(
+  "1" = "Piso", "2" = "Apartamento", "3" = "Casa o chalet",
+  "5" = "Casa adosada", "6" = "Ático", "7" = "Dúplex",
+  "8" = "Loft", "52" = "Bajos", "54" = "Estudio", "10" = "Otros"
+  )
+
+# Aplicar el mapeo
+afc_fotocasa$propertySubtypeCat <- subtype_map[as.character(afc_fotocasa$propertySubtypeId)]
+```
+
+# Transformación: precios a categorías
+
+```{r trans_precio}
+# Crear categorías ordinales de precio con cuantiles
+afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
+                                  breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
+                                  include.lowest = TRUE,
+                                  labels = c("Muy Bajo", "Bajo", "Medio Bajo", "Medio Alto", "Alto", "Muy Alto")
+                                  )
+```
+
+# Gráficos exploratorios
+
+```{r gráficos}
+# Distribución del número de viviendas por subtipo
+barplot(table(afc_fotocasa$propertySubtypeCat),
+        col = "lightgreen",
+        main = "Distribución por Subtipo de Vivienda",
+        ylab = "Número de viviendas")
+
+# Distribución del número de viviendas por categoría de precio
+barplot(table(afc_fotocasa$priceCategory),
+        col = "lightgreen",
+        main = "Distribución del Precio por Categorías",
+        ylab = "Número de viviendas")
+
+```
+
+# Tabla de contingencia y Chi-cuadrado
+
+```{r}
+# Tabla de contingencia Subtipo vs Categoría de Precio
+tabla_subtipo_precio <- table(afc_fotocasa$propertySubtypeCat, afc_fotocasa$priceCategory)
+
+# Mostrar tabla
+tabla_subtipo_precio
+
+# Test Chi-cuadrado para evaluar independencia
+chisq.test(tabla_subtipo_precio, simulate.p.value = TRUE)
+```
+La asociación entre el vecindario (neighborhood) y la categoría de precio (priceCategory) es estadísticamente significativa con un p-valor de 0.0005. Esto sugiere que el precio está relacionado con el vecindario.
+
+## AFC
+
+# Selección del número de dimensiones
+
+```{r}
+afc_subtipo = CA(tabla_subtipo_precio, graph = FALSE)
+
+# Inercia explicada por dimensión
+valores_propios_subtipo = get_eigenvalue(afc_subtipo)
+
+# Inercia media
+inercia_media_subtipo = 100 * (1 / nrow(valores_propios_subtipo))
+
+# Gráfico de varianza explicada
+fviz_eig(afc_subtipo, addlabels = TRUE) +
+  geom_hline(yintercept = inercia_media_subtipo, linetype = 2, color = "red") +
+  ggtitle("Varianza Explicada por Dimensión (AFC - Subtipo)")
+```
+
+# Interpretación en el plano factorial
+
+```{r}
+afc_subtipo = CA(tabla_subtipo_precio, graph=FALSE, ncp=2)
+
+# Visualización de subtipos (filas)
+fviz_ca_row(afc_subtipo, axes = c(1, 2), repel = TRUE, col.row = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "Subtipos de Vivienda según perfil de precios")
+
+# Visualización de categorías de precio (columnas)
+fviz_ca_col(afc_subtipo, axes = c(1, 2), repel = TRUE, col.col = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "Categorías de Precio según subtipo de vivienda")
+```
+

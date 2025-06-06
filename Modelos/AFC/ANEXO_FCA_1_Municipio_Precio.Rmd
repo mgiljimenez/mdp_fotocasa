@@ -1,0 +1,100 @@
+---
+title: 'anexo AFC Simple: Municipio vs. Precio'
+author: "Miguel Gil y Fátima Taberner"
+output:
+  pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r librerias, include=FALSE}
+library(readxl)
+library(knitr)
+library(FactoMineR)
+library(corrplot)
+library(gridExtra)
+library(factoextra)
+```
+
+```{r datos, echo=FALSE}
+afc_fotocasa = read_excel("data_clean1.xlsx")
+
+# Esta tabla describe el tipo de cada variable. ¿Está ya incluida en otro bloque del proyecto?
+# descFotocasa = data.frame("variable" = colnames(data), "tipo" = c ("text","num","num",rep("cat",4),   "date",rep("cat",2),rep("num",7), rep("bool",4),rep("num",12),"bool"))
+```
+
+### Transformación: precios a categorías
+Con el fin de realizar un Análisis Factorial de Correspondencias sobre las variables "Municipio" y "Precio" se ha realizado una transformación previa sobre la variable precio para poder realizar el AFC. "Precio" se ha transformado a 6 categorías ordinales clasificándolo de precio muy bajo a precio muy alto.
+
+```{r trans_precio, echo=FALSE, fig.align='center', fig.height=4, fig.width=8}
+# Histograma del precio original
+# hist(afc_fotocasa$priceAmount, breaks = 30, col = "lightblue", main = "Distribución del Precio", xlab = "Precio (€)")
+
+# Crear categorías ordinales de precio con cuantiles
+afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
+                                  breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
+                                  include.lowest = TRUE,
+                                  labels = c("Muy Bajo", "Bajo", "Medio Bajo", "Medio Alto", "Alto", "Muy Alto"))
+
+# Gráfico de barras de la nueva variable categórica
+barplot(table(afc_fotocasa$priceCategory),
+        col = "lightgreen",
+        main = "Distribución del Precio por Categorías",
+        ylab = "Número de viviendas")
+```
+Este gráfico de barras muestra la distribución de las viviendas según su categoría de precio, creada a partir de cuantiles. El eje Y indica el número de viviendas que pertenecen a cada categoría (por ejemplo: "Muy Bajo", "Bajo", "Alto", etc.).
+
+### Tabla de contingencia y Chi-cuadrado
+Con el fin de contrastar la hipótesis nula de independencia entre ambas variables, se aplicará un test de independencia $\chi^2$. Para ello se genera la tabla de contingencia de Municipio y Precio, y se aplica el test.
+```{r tabla_cont, include=FALSE}
+# Crear tabla de contingencia Municipio vs Categoría de Precio
+tabla_muni_precio <- table(afc_fotocasa$municipality, afc_fotocasa$priceCategory)
+
+# Mostrar tabla
+# tabla_muni_precio
+
+# Test de independencia (Chi-cuadrado)
+chisq.test(tabla_muni_precio, simulate.p.value = TRUE)
+```
+Como resultado se obtiene un p-valor de 0,0005, por lo que se rechaza la hipótesis nula y se concluye que existe una dependencia estadísticamente significativa entre el municipio y el precio. Así pues, tiene sentido que estudiemos la naturaleza y causas de dicha dependencia con un AFC simple.
+
+## AFC
+A continuación se realiza el AFC comenzando por la seleccíon del número de componentes. Según el siguiente gráfico se puede ver que la primera componente ya explica un 75,6% de la inercia total de la tabla de contingencia, mientras que la segunda apenas explica un 15,2%, por debajo de la inercia media teórica (20%). Por tanto se elegiría solo la primera componente, no obstante, se elgiran las dos primeras para poder generar los gráficos de filas y columnas para poder interpretar el AFC no dándole importancia a la segunda componente.
+
+### Selección del número de dimensiones
+
+```{r num_dimensiones, echo=FALSE, fig.align='center', fig.height=4, fig.width=4}
+afc_resultado = CA(tabla_muni_precio, graph = FALSE)
+
+# Valores propios (inercia explicada)
+valores_propios = get_eigenvalue(afc_resultado)
+
+# Media teórica de inercia para comparar
+inercia_media = 100 * (1 / nrow(valores_propios))
+
+# Gráfico de varianza explicada por dimensión
+fviz_eig(afc_resultado, addlabels = TRUE) +
+         geom_hline(yintercept = inercia_media, linetype = 2, color = "red") +
+         ggtitle("Varianza Explicada por Componente")
+
+```
+### Interpretación en el plano factorial
+El primer eje (Dim1), que explica la mayor parte de la inercia (75,6%), separa claramente los municipios según el nivel de precios: a la izquierda se agrupan distritos como Benicalap o Pobles de l’Oest, asociados a precios bajos, mientras que a la derecha destacan L’Eixample y Ciutat Vella, vinculados a precios muy altos. El segundo eje (Dim2), con menor peso (15,2%), añade variabilidad secundaria sin una interpretación tan clara.
+
+En conjunto, el AFC refleja una estructura clara de dependencia entre municipio y nivel de precio, coherente con la geografía socioeconómica de la ciudad.
+
+```{r municipios, echo=FALSE, fig.align='center', fig.height=3, fig.width=6}
+afc_resultado = CA(tabla_muni_precio, graph = FALSE, ncp=2)
+
+# Visualización de municipios (filas)
+fviz_ca_row(afc_resultado, axes = c(1, 2), repel = TRUE, col.row = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+            title = "Municipios según su perfil de precios")
+
+# Visualización de categorías de precio (columnas)
+fviz_ca_col(afc_resultado, axes = c(1, 2), repel = TRUE, col.col = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+            title = "Categorías de Precio según municipios")
+```
+

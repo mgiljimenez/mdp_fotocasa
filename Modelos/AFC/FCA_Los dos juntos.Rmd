@@ -1,0 +1,176 @@
+---
+title: 'AFCs Simple: Municipio vs. Precio, y, SubTipo vs. Precio'
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+date: "2025-06-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Librerias necesarias
+
+```{r, echo=FALSE}
+library(readxl)
+library(knitr)
+library(FactoMineR)
+library(corrplot)
+library(gridExtra)
+library(factoextra)
+```
+
+# Carga de datos
+
+```{r datos}
+afc_fotocasa <- read_excel("data_clean1.xlsx")
+```
+
+# Transformación: precios a categorías
+
+```{r trans_precio}
+# Histograma del precio original
+hist(afc_fotocasa$priceAmount, breaks = 30, col = "lightblue", main = "Distribución del Precio", xlab = "Precio (€)")
+
+
+# Crear categorías ordinales de precio con cuantiles
+afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
+                                  breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
+                                  include.lowest = TRUE,
+                                  labels = c("Muy Bajo", "Bajo", "Medio Bajo", "Medio Alto", "Alto", "Muy Alto"))
+
+# Gráfico de barras de la nueva variable categórica
+barplot(table(afc_fotocasa$priceCategory),
+        col = "lightgreen",
+        main = "Distribución del Precio por Categorías",
+        ylab = "Número de viviendas")
+```
+Este gráfico de barras muestra la distribución de las viviendas según su categoría de precio, creada a partir de cuantiles. El eje Y indica el número de viviendas que pertenecen a cada categoría (por ejemplo: "Muy Bajo", "Bajo", "Alto", etc.).
+
+## AFC 1: Municipio vs Categoría de Precio
+
+# Tabla de contingencia y Chi-cuadrado
+
+```{r tabla_cont_municipio}
+# Crear tabla de contingencia Municipio vs Categoría de Precio
+tabla_muni_precio <- table(afc_fotocasa$municipality, afc_fotocasa$priceCategory)
+
+# Mostrar tabla
+tabla_muni_precio
+
+# Test de independencia (Chi-cuadrado)
+chisq.test(tabla_muni_precio, simulate.p.value = TRUE)
+```
+La asociación entre el vecindario (neighborhood) y la categoría de precio (priceCategory) es estadísticamente significativa con un p-valor de 0.0005. Esto sugiere que el precio está relacionado con el vecindario.
+
+# Selección del número de dimensiones
+
+```{r num_dimensiones_muni}
+afc_municipio = CA(tabla_muni_precio, graph = FALSE)
+
+# Valores propios (inercia explicada)
+valores_propios_muni = get_eigenvalue(afc_municipio)
+
+# Media teórica de inercia para comparar
+inercia_media = 100 * (1 / nrow(valores_propios_muni))
+
+# Gráfico de varianza explicada por dimensión
+fviz_eig(afc_municipio, addlabels = TRUE) +
+         geom_hline(yintercept = inercia_media, linetype = 2, color = "red") +
+         ggtitle("Varianza Explicada - Municipio vs Precio")
+```
+
+# Interpretación en el plano factorial
+
+```{r afc_municipio}
+afc_municipio = CA(tabla_muni_precio, graph = FALSE, ncp=2)
+
+# Visualización de municipios (filas)
+fviz_ca_row(afc_municipio, axes = c(1, 2), repel = TRUE, col.row = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+            title = "Municipios según su perfil de precios")
+
+# Visualización de categorías de precio (columnas)
+fviz_ca_col(afc_municipio, axes = c(1, 2), repel = TRUE, col.col = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+            title = "Categorías de Precio según municipios")
+```
+
+
+El AFC permite explorar visualmente si existen asociaciones significativas entre municipios y niveles de precio. Nos ayuda a entender si ciertos municipios presentan un perfil de vivienda más caro o más barato respecto al conjunto.
+
+El análisis muestra que los municipios no se distribuyen aleatoriamente entre las categorías de precio. Por ejemplo, algunos municipios se agrupan en torno a categorías de precio alto (como "Muy Alto") mientras que otros se alinean con precios bajos. Esto evidencia un patrón geográfico en el mercado inmobiliario. En este caso, las dos primeras dimensiones explican aproximadamente `r round(sum(valores_propios_muni[1:2, "eigenvalue"]), 2)`% de la variación total.
+
+## AFC 2: Subtipo de Vivienda vs Categoría de Precio
+
+# Mapeo del subtipo de propiedad
+
+```{r map_subtipo}
+# Diccionario para traducir los códigos de propertySubtypeId a nombres descriptivos
+subtype_map <- c("1" = "Piso",
+                 "2" = "Apartamento",
+                 "3" = "Casa o chalet",
+                 "5" = "Casa adosada",
+                 "6" = "Ático",
+                 "7" = "Dúplex",
+                 "8" = "Loft",
+                 "10" = "Otros",
+                 "52" = "Bajos",
+                 "54" = "Estudio")
+
+# Aplicar el mapeo
+afc_fotocasa$propertySubtypeCat <- subtype_map[as.character(afc_fotocasa$propertySubtypeId)]
+
+# Distribución del número de viviendas por subtipo
+barplot(table(afc_fotocasa$propertySubtypeCat),
+        col = "lightgreen",
+        main = "Distribución por Subtipo de Vivienda",
+        ylab = "Número de viviendas")
+```
+
+# Tabla de contingencia y Chi-cuadrado
+
+```{r tabla_cont_subtipo}
+# Tabla de contingencia Subtipo vs Categoría de Precio
+tabla_subtipo_precio <- table(afc_fotocasa$propertySubtypeCat, afc_fotocasa$priceCategory)
+
+# Mostrar tabla
+tabla_subtipo_precio
+
+# Test Chi-cuadrado para evaluar independencia
+chisq.test(tabla_subtipo_precio, simulate.p.value = TRUE)
+```
+La asociación entre el vecindario (neighborhood) y la categoría de precio (priceCategory) es estadísticamente significativa con un p-valor de 0.0005. Esto sugiere que el precio está relacionado con el vecindario.
+
+# Selección del número de dimensiones
+
+```{r num_dimensiones_subtipo}
+afc_subtipo = CA(tabla_subtipo_precio, graph = FALSE)
+
+# Inercia explicada por dimensión
+valores_propios_subtipo = get_eigenvalue(afc_subtipo)
+
+# Inercia media
+inercia_media_subtipo = 100 * (1 / nrow(valores_propios_subtipo))
+
+# Gráfico de varianza explicada
+fviz_eig(afc_subtipo, addlabels = TRUE) +
+  geom_hline(yintercept = inercia_media_subtipo, linetype = 2, color = "red") +
+  ggtitle("Varianza Explicada - Subtipo vs Precio")
+```
+
+# Interpretación en el plano factorial
+
+```{r afc_subtipo}
+afc_subtipo = CA(tabla_subtipo_precio, graph=FALSE, ncp=2)
+
+# Visualización de subtipos (filas)
+fviz_ca_row(afc_subtipo, axes = c(1, 2), repel = TRUE, col.row = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "Subtipos de Vivienda según perfil de precios")
+
+# Visualización de categorías de precio (columnas)
+fviz_ca_col(afc_subtipo, axes = c(1, 2), repel = TRUE, col.col = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), title = "Categorías de Precio según subtipo de vivienda")
+```
+
+> **Justificación del análisis**: El AFC entre tipo de vivienda y precio nos permite descubrir patrones entre categorías de vivienda (como áticos o estudios) y los rangos de precios en que suelen encontrarse.
+
+> **Conclusión**: El gráfico factorial permite observar cómo ciertos subtipos de vivienda se alinean con niveles de precios. Por ejemplo, los "Áticos" y "Chalets" suelen ubicarse en categorías altas, mientras que "Estudios" o "Bajos" predominan en rangos más bajos. Las dos primeras dimensiones explican en conjunto aproximadamente `r round(sum(valores_propios_subtipo[1:2, "eigenvalue"]), 2)`% de la variabilidad, lo que refuerza la relevancia del modelo.
