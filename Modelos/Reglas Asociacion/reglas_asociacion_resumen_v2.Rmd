@@ -20,9 +20,7 @@ Con el objetivo de facilitar el análisis de reglas de asociación, se realizó 
 Una vez procesados los datos, se aplicó el algoritmo **Apriori** con un umbral mínimo de soporte del 1% y confianza del 50% obteniendo un total de 12745 reglas.
 Posteriormente se han eliminado reglas redundantes, aquellas que no aportan información adicional respecto a reglas más generales con igual o mejor confianza. Esto permite conservar las reglas más significativas. Las reglas maximales no se han priorizado, ya que suelen perder especificidad, dificultando su aplicación práctica.
 Tras eliminar las redundantes nos quedamos con un total de 2408 reglas.
-Por último, filtramos las reglas con los siguientes umbrales quedándonos con las 21 reglas más relevantes.
-
-- Soporte > 0.015   |   Confianza > 0.7   |   Lift > 3.5
+Por último, filtramos las reglas con los siguientes umbrales quedándonos con las 21 reglas más relevantes: Soporte > 0.015, Confianza > 0.7 y Lift > 3.5
 
 Estas condiciones permiten identificar patrones **robustos y estadísticamente relevantes** que relacionan ciertas configuraciones de un inmueble con su probabilidad de pertenecer a un rango de precio específico.
 A continuación se muestran las **cinco reglas más destacadas**, ordenadas por su *lift*. Es importante destacar que las 21 reglas comparten el consecuente de **Precio Alto**.
@@ -111,18 +109,14 @@ kable(reglas_df, format = "latex", digits = 3,
 
 Una vez identificadas dichas reglas y analizando que están asociadas a precios altos, exploramos ahora aquellas cuya consecuencia es priceAmount = precio_bajo.
 Este tipo de reglas resulta especialmente útil para detectar inmuebles infravalorados o con condiciones objetivas que los hacen significativamente más asequibles.
-Para ello, filtramos las reglas con:
-
-- Soporte > 0.0107    |   Confianza > 0.8   |   Lift > 2.7
+Para ello, filtramos las reglas con: Soporte > 0.0107, Confianza > 0.8 y Lift > 2.7
 ```{r Reglas Precio Bajo, echo=FALSE, results='asis'}
 kable(reglas_df_bajas, format = "latex", digits = 3,
       caption = "Reglas de asociación más relevantes asociadas a Precios Bajos (ordenadas por lift)") %>%
   kableExtra::kable_styling(latex_options = c("scale_down", "hold_position"))
 ```
 
-A continuación, se han empleado dos tipos de gráficos para explorar visualmente las reglas de asociación más representativas: un **diagrama de dispersión (scatter plot)** para analizar la relación entre soporte y confianza, y un **gráfico de coordenadas paralelas** para examinar la estructura interna de las reglas en términos de los atributos que las componen.
-
-No se utilizaron representaciones como el grouped matrix ni la matriz de calor, ya que estas técnicas son más adecuadas cuando las reglas implican combinaciones simples entre pocos ítems. En este caso, las reglas seleccionadas están formadas por múltiples atributos simultáneos, lo que genera una elevada dimensionalidad y dificulta la interpretación gráfica en formatos matriciales. Por ello, se optó por visualizaciones más eficaces para este tipo de complejidad estructural.
+A continuación, se han empleado gráficos para explorar visualmente las reglas de asociación: un **diagrama de dispersión (scatter plot)** para analizar la relación entre soporte y confianza, y un **gráfico de coordenadas paralelas** para examinar la estructura interna de las reglas en términos de los atributos que las componen. No se utilizaron representaciones como el grouped matrix ni la matriz de calor, ya que estas técnicas son más adecuadas cuando las reglas implican combinaciones simples entre pocos ítems. Al estar las reglas formadas por múltiples atributos simultáneos, genera una gran dimensionalidad y dificulta la interpretación gráfica en formatos matriciales. Por ello, se optó por visualizaciones más eficaces para este tipo de complejidad estructural.
 ```{r Grafico Dispersion, fig.cap="Distribución de Reglas", fig.width=5, fig.height=3, fig.align='center', fig.pos='H', echo=FALSE, warning=FALSE, message=FALSE}
 # Gráfico 1: Dispersión Soporte vs Confianza
 plot(reglas_filtradas, method = "scatterplot", shading = "confidence")
@@ -154,8 +148,4 @@ Se aprecia una clara convergencia de reglas hacia ciertos atributos comunes, com
 Estas características aparecen reiteradamente como predictores del precio alto, lo que refuerza su relevancia dentro del conjunto de datos analizado.
 
 
-El análisis de reglas de asociación ha revelado patrones sólidos entre las características estructurales de los inmuebles y su rango de precio. En particular, propiedades con gran superficie, múltiples baños y habitaciones, ascensor, calefacción y aire acondicionado muestran una alta probabilidad de pertenecer al segmento de precio alto.
-
-En contraste, los inmuebles con superficie reducida, una sola habitación y ausencia de comodidades tienden a asociarse con precios bajos, lo que puede indicar oportunidades de inversión o infravaloración.
-
-Estos resultados proporcionan una base objetiva y cuantitativa para la valoración rápida de propiedades, con aplicaciones directas en la toma de decisiones de compradores, inversores y plataformas de tasación automatizada.
+Este análisis ha revelado patrones sólidos entre las características estructurales de los inmuebles y su rango de precio. En particular, propiedades con gran superficie, múltiples baños y habitaciones, ascensor, calefacción y aire acondicionado muestran una alta probabilidad de pertenecer al segmento de precio alto.
