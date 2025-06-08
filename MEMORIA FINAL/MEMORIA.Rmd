@@ -1,5 +1,6 @@
 ---
-title: 'Análisis del mercado inmobiliario en Valencia'
+title: 'Análisis del mercado inmobiliario en Valencia.
+Grupo A1-12'
 author: "Ana Vílchez, Ana Valiente, Fátima Taberner, Miguel Gil y Oscar Antonino"
 date: "`r Sys.Date()`"
 output:
@@ -9,8 +10,13 @@ output:
     number_sections: TRUE  
   html_document: default
 ---
+<<<<<<< HEAD:TRABAJO FINAL/unido.Rmd
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 'hide')
+=======
+```{r setup}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+>>>>>>> 9643ea9288abe8f87e4500352e535f3665a615bd:MEMORIA FINAL/MEMORIA.Rmd
 ```
 
 
@@ -42,6 +48,7 @@ library(ropls)         # PLS-DA, PLS
 library(mixOmics)      # PLS-DA
 library(ggrepel)       # PLS-DA, PLS
 library(pROC)          # PLS-DA
+<<<<<<< HEAD:TRABAJO FINAL/unido.Rmd
 
 # Instalación adicional
 #if (!requireNamespace("BiocManager", quietly = TRUE)) {
@@ -49,6 +56,8 @@ library(pROC)          # PLS-DA
 #}
 
 #BiocManager::install("mixOmics")
+=======
+>>>>>>> 9643ea9288abe8f87e4500352e535f3665a615bd:MEMORIA FINAL/MEMORIA.Rmd
 ```
 
 # Introducción.
@@ -322,13 +331,15 @@ boxplot_grob <- ggplot(df, aes(x = cluster, y = price)) +
 grid.arrange(tabla_grob, boxplot_grob, ncol = 2)
 
 ```
+
 ### Representación de los clusters en la ciudad de Valencia.
 Finalmente, para visualizar geográficamente los resultados obtenidos, hemos los 7 clusters en un mapa de la ciudad de Valencia, utilizando las variables latitud y longitud. Así, fue posible determinar a qué zona corresponde cada uno de los grupos.
 La representación del mapa la conseguimos a partir de una API KEY de google cloud y, por motivos de seguridad, en esta memoria se incluirá en formato png. En la imagen se aprecia como, mientras algunos clusters están muy centrados en una zona concreta, otros se extienden por varios barrios valencianos.
 
-```{r mapa_clusters, fig.align='center', out.width="0.3\\linewidth"}
-knitr::include_graphics("mapa_clusters.png")
+```{r fig.align='center', out.width="0.3\\linewidth"}
+knitr::include_graphics("mapa_clusters.jpg")
 ```
+
 A partir de la información obtenida en el mapa, hemos diseñado la siguiente clasificación:
 
 ```{r clasificacion_final, fig.align='center', fig.height=1.5, fig.width=7}
@@ -883,7 +894,7 @@ plot(roc_obj,
      lwd = 2,
      legacy.axes = TRUE)
 ```
-```{r umbral_op_balanced2, echo=FALSE}
+```{r umbral_op_balanced2, include=FALSE}
 # Filtrar umbrales válidos
 thresholds <- roc_obj$thresholds
 thresholds <- thresholds[thresholds >= 0 & thresholds <= 1]
