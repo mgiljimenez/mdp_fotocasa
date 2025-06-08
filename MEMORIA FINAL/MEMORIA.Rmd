@@ -619,29 +619,8 @@ kable(reglas_df_bajas, format = "latex", digits = 3,
   kableExtra::kable_styling(latex_options = c("scale_down", "hold_position"))
 ```
 
-A continuación, se han empleado gráficos para explorar visualmente las reglas de asociación: un **diagrama de dispersión (scatter plot)** para analizar la relación entre soporte y confianza, y un **gráfico de coordenadas paralelas** para examinar la estructura interna de las reglas en términos de los atributos que las componen. No se utilizaron representaciones como el grouped matrix ni la matriz de calor, ya que estas técnicas son más adecuadas con combinaciones simples entre pocos ítems. Al estar las reglas formadas por múltiples atributos simultáneos, genera una elevada dimensionalidad y dificulta la interpretación gráfica en formatos matriciales.
 
-```{r Grafico Dispersion, fig.align='center', fig.pos='H', fig.width=7, fig.height=3, echo=FALSE, warning=FALSE, message=FALSE}
-# Gráfico 1: Dispersión Soporte vs ConfiXanza
-plot(reglas_filtradas, method = "scatterplot", shading = "confidence")
-```
-
-El gráfico de dispersión muestra la relación entre el soporte y la confianza de las 21 reglas de asociación seleccionadas, con una escala de color que representa el nivel de confianza. Todas las reglas tienen un soporte comprendido entre 0.015 y 0.025, lo cual indica que aunque no son extremadamente frecuentes.
-En términos de confianza, todas superan el umbral mínimo de 0.7, alcanzando valores próximos al 0.97. Esto indica que cuando se cumplen las condiciones del antecedente, la probabilidad de que el precio sea alto es muy elevada.
-Las reglas con mayor confianza tienden a tener un soporte ligeramente menor, lo que sugiere que, si bien son altamente fiables, aplican a un subconjunto más específico del mercado inmobiliario.
-
-```{r Coordenadas Paralelas, fig.width=5, fig.height=2.5, fig.align='center', fig.pos='H', echo=FALSE, warning=FALSE, message=FALSE}
-# Gráfico 2: Coordenadas paralelas
-par(mar = c(4, 7, 3, 1))  # Márgenes ajustados
-plot(reglas_filtradas, method = "paracoord", shading = "confidence")
-```
-
-El gráfico de coordenadas paralelas representa visualmente la estructura interna de las reglas más representativas.
-Cada línea corresponde a una regla individual, y su recorrido conecta los distintos atributos que forman el antecedente, finalizando en el consecuente (priceAmount_precio_alto).
-
-Se aprecia una clara convergencia de reglas hacia ciertos atributos comunes, como: Superficie elevada del inmueble (surface_surface_alto), Existencia de ascensor (tieneAscensor_con_ascensor), Más de 3 baños (bathrooms_3+_banios) y Existencia de calefacción (tieneCalefaccion_con_calefaccion). Estas características aparecen reiteradamente como predictores del precio alto, lo que refuerza su relevancia dentro del conjunto de datos analizado.
-
-Este análisis ha revelado patrones sólidos entre las características de los inmuebles y su rango de precio. En particular, propiedades con gran superficie, múltiples baños y habitaciones, ascensor, calefacción y aire acondicionado muestran una alta probabilidad de pertenecer al segmento de precio alto. En contraste, los inmuebles con superficie reducida, una sola habitación y ausencia de comodidades tienden a asociarse con precios bajos, lo que puede indicar oportunidades de inversión o infravaloración.
+Este análisis ha revelado patrones sólidos entre las características de los inmuebles y su rango de precio. En particular, propiedades con gran superficie, múltiples baños y habitaciones, ascensor, calefacción y aire acondicionado muestran una alta probabilidad de pertenecer al segmento de precio alto. En contraste, los inmuebles con superficie reducida, una sola habitación y ausencia de comodidades tienden a asociarse con precios bajos, lo que puede indicar oportunidades de inversión o infravaloración. Además se han creado una serie de gráficos que refuerzan este análisis (consultar en el anexo \ref{sec:reglasasociacion}).
 
 
 # PLS-DA.
@@ -1736,7 +1715,31 @@ ggplot(fotocasa, aes(x = categoria)) +
 
 
 ## AFC.
-## Reglas de Asociación.
+
+## Reglas de Asociación. \label{sec:reglasasociacion}
+
+A continuación, se han empleado gráficos para explorar visualmente las reglas de asociación: un **diagrama de dispersión (scatter plot)** para analizar la relación entre soporte y confianza, y un **gráfico de coordenadas paralelas** para examinar la estructura interna de las reglas en términos de los atributos que las componen. No se utilizaron representaciones como el grouped matrix ni la matriz de calor, ya que estas técnicas son más adecuadas con combinaciones simples entre pocos ítems. Al estar las reglas formadas por múltiples atributos simultáneos, genera una elevada dimensionalidad y dificulta la interpretación gráfica en formatos matriciales.
+
+```{r Grafico Dispersion, fig.align='center', fig.pos='H', fig.width=7, fig.height=3, echo=FALSE, warning=FALSE, message=FALSE}
+# Gráfico 1: Dispersión Soporte vs ConfiXanza
+plot(reglas_filtradas, method = "scatterplot", shading = "confidence")
+```
+
+El gráfico de dispersión muestra la relación entre el soporte y la confianza de las 21 reglas de asociación seleccionadas, con una escala de color que representa el nivel de confianza. Todas las reglas tienen un soporte comprendido entre 0.015 y 0.025, lo cual indica que aunque no son extremadamente frecuentes.
+En términos de confianza, todas superan el umbral mínimo de 0.7, alcanzando valores próximos al 0.97. Esto indica que cuando se cumplen las condiciones del antecedente, la probabilidad de que el precio sea alto es muy elevada.
+Las reglas con mayor confianza tienden a tener un soporte ligeramente menor, lo que sugiere que, si bien son altamente fiables, aplican a un subconjunto más específico del mercado inmobiliario.
+
+```{r Coordenadas Paralelas, fig.width=5, fig.height=2.5, fig.align='center', fig.pos='H', echo=FALSE, warning=FALSE, message=FALSE}
+# Gráfico 2: Coordenadas paralelas
+par(mar = c(4, 7, 3, 1))  # Márgenes ajustados
+plot(reglas_filtradas, method = "paracoord", shading = "confidence")
+```
+
+El gráfico de coordenadas paralelas representa visualmente la estructura interna de las reglas más representativas.
+Cada línea corresponde a una regla individual, y su recorrido conecta los distintos atributos que forman el antecedente, finalizando en el consecuente (priceAmount_precio_alto).
+
+Se aprecia una clara convergencia de reglas hacia ciertos atributos comunes, como: Superficie elevada del inmueble (surface_surface_alto), Existencia de ascensor (tieneAscensor_con_ascensor), Más de 3 baños (bathrooms_3+_banios) y Existencia de calefacción (tieneCalefaccion_con_calefaccion). Estas características aparecen reiteradamente como predictores del precio alto, lo que refuerza su relevancia dentro del conjunto de datos analizado.
+
 ## Análisis Discriminante de Fisher. \label{sec:fisher}
 ```{r, include=FALSE}
 options(tinytex.verbose = TRUE)
