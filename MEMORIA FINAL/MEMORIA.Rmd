@@ -10,13 +10,8 @@ output:
     number_sections: TRUE  
   html_document: default
 ---
-<<<<<<< HEAD:TRABAJO FINAL/unido.Rmd
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 'hide')
-=======
-```{r setup}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
->>>>>>> 9643ea9288abe8f87e4500352e535f3665a615bd:MEMORIA FINAL/MEMORIA.Rmd
 ```
 
 
@@ -48,7 +43,6 @@ library(ropls)         # PLS-DA, PLS
 library(mixOmics)      # PLS-DA
 library(ggrepel)       # PLS-DA, PLS
 library(pROC)          # PLS-DA
-<<<<<<< HEAD:TRABAJO FINAL/unido.Rmd
 
 # Instalación adicional
 #if (!requireNamespace("BiocManager", quietly = TRUE)) {
@@ -56,8 +50,6 @@ library(pROC)          # PLS-DA
 #}
 
 #BiocManager::install("mixOmics")
-=======
->>>>>>> 9643ea9288abe8f87e4500352e535f3665a615bd:MEMORIA FINAL/MEMORIA.Rmd
 ```
 
 # Introducción.
@@ -440,12 +432,13 @@ afc_fotocasa = read_excel("data_clean1.xlsx")
 ```
 
 # AFC simple: Subtipo y Precio
-Además de este AFC simple se ha realizado también otro AFC con las variables Municipio y Precio, sin embargo como el clustering aporta más información que el AFC sobre dichas variables se ha decidido dejarlo en Anexos como consulta en lugar de presentarlo en el proyecto.
+Además de este AFC simple se ha realizado también otro AFC con las variables Municipio y Precio, sin embargo como el clustering aporta más información que el AFC sobre dichas variables se ha decidido dejarlo en Anexos (\ref{sec:afc_muni_precio}) como consulta en lugar de presentarlo en el proyecto.
 
-El AFC entre tipo de vivienda y precio permite descubrir patrones entre categorías de vivienda (como áticos o pisos) y los rangos de precios en que suelen encontrarse. Por ello, se ha optado por realizar un AFC sobre estas variables.
+A continuación, se analizan los resultados del Análisis de Correspondencias (AFC) realizado entre el tipo de vivienda y el rango de precios. Este análisis permite identificar patrones entre distintas categorías de vivienda (como áticos o pisos) y los niveles de precio en los que suelen encontrarse. Por esta razón, se ha optado por aplicar un AFC a estas variables.
 
-Con el fin de realizar un Análisis Factorial de Correspondencias sobre las variables "Subtipo" y "Precio" se han realizado transformaciones previas sobre dichas variables para poder realizar el AFC. La variable "Subtipo" se ha mapeado para traducir los códigos de propertySubtypeId a nombres descriptivos. Por otro lado, el Precio se ha transformado a 6 categorías ordinales clasificándolo de precio muy bajo a precio muy alto.
-```{r map_subtipo, include=FALSE}
+La justificación detallada del análisis, así como su desarrollo completo, se encuentra en el apartado de Anexos (véase \ref{sec:afc_tipo_precio}). En los gráficos siguientes, la interpretación se centrará exclusivamente en el eje horizontal, dado que este representa el mayor porcentaje de variabilidad explicada (83,3%). En consecuencia, la posición en el eje vertical (Dim2) no será tenida en cuenta en esta lectura.
+
+```{r map_subtipo_mem, include=FALSE}
 # Diccionario para traducir los códigos de propertySubtypeId a nombres descriptivos
 subtype_map <- c("1" = "Piso",
                  "2" = "Apartamento",
@@ -461,7 +454,7 @@ subtype_map <- c("1" = "Piso",
 afc_fotocasa$propertySubtypeCat <- subtype_map[as.character(afc_fotocasa$propertySubtypeId)]
 ```
 
-```{r trans_precio, include=FALSE}
+```{r trans_precio_mem, include=FALSE}
 # Crear categorías ordinales de precio con cuantiles
 afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
                                   breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
@@ -469,10 +462,6 @@ afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
                                   labels = c("Muy Bajo", "Bajo", "Medio Bajo", "Medio Alto", "Alto", "Muy Alto")
                                   )
 ```
-
-
-## Dependencia entre Subtipo y Precio
-Con el fin de contrastar la hipótesis nula de independencia entre ambas variables, se aplicará un test de independencia $\chi^2$. Para ello se genera la tabla de contingencia de Subtipo y Precio, y se aplica el test.
 
 ```{r, echo=FALSE,include=FALSE}
 # Tabla de contingencia Subtipo vs Categoría de Precio
@@ -482,12 +471,8 @@ tabla_subtipo_precio
 # Test Chi-cuadrado para evaluar independencia
 chisq.test(tabla_subtipo_precio, simulate.p.value = TRUE)
 ```
-Como resultado se obtiene un p-valor de 0,0005, por lo que se rechaza la hipótesis nula y se concluye que existe una dependencia estadísticamente significativa entre el subtipo de vivienda y el precio. Así pues, tiene sentido que estudiemos la naturaleza y causas de dicha dependencia con un AFC simple.
 
-## Análisis Factorial de Correspondencias
-A continuación se realiza el AFC comenzando por la seleccíon del número de componentes. Según el siguiente gráfico se puede ver que la primera componente ya explica un 83,3% de la inercia total de la tabla de contingencia, mientras que la segunda solo explica un 13,4%, claramente por debajo de la inercia media teórica (aproximadamente el 32%). Por tanto se elegiría solo la primera componente, no obstante, se elgiran las dos primeras para poder generar los gráficos de filas y columnas para poder interpretar el AFC no dándole importancia a la segunda componente.
-
-```{r, echo=FALSE, fig.align='center', fig.height=3, fig.width=3.5}
+```{r, include=FALSE}
 afc_subtipo = CA(tabla_subtipo_precio, graph = FALSE)
 # Inercia explicada por dimensión
 valores_propios_subtipo = get_eigenvalue(afc_subtipo)
@@ -498,8 +483,6 @@ fviz_eig(afc_subtipo, addlabels = TRUE) +
   geom_hline(yintercept = inercia_media_subtipo, linetype = 2, color = "red") +
   ggtitle("Varianza Explicada por Componente")
 ```
-
-La lectura de los siguientes gráficos se centra exclusivamente en el eje horizontal, ya que es el que explica el mayor porcentaje de la variabilidad (83.3%). Se ignorará, por tanto, la posición en el eje vertical (Dim2).
 
 ```{r, echo=FALSE, fig.align='center', fig.height=2, fig.width=6.5}
 # Análisis de correspondencias
@@ -1411,9 +1394,7 @@ g4 <- fviz_contrib(res.pca, choice = "var", axes = 4, fill = "darkred", color = 
 grid.arrange(g3, g4, ncol = 2)
 ```
 
-
 ## Clustering.
-## Clustering. 
 
 ```{r }
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message=FALSE)
@@ -1715,6 +1696,139 @@ ggplot(fotocasa, aes(x = categoria)) +
 
 
 ## AFC.
+
+### AFC simple: Municipio vs. Precio \label{sec:afc_muni_precio}
+
+#### Transformación: precios a categorías
+Con el fin de realizar un Análisis Factorial de Correspondencias sobre las variables "Municipio" y "Precio" se ha realizado una transformación previa sobre la variable precio para poder realizar el AFC. "Precio" se ha transformado a 6 categorías ordinales clasificándolo de precio muy bajo a precio muy alto.
+
+```{r trans_muni_precio, echo=FALSE, fig.align='center', fig.height=4, fig.width=8}
+# Histograma del precio original
+# hist(afc_fotocasa$priceAmount, breaks = 30, col = "lightblue", main = "Distribución del Precio", xlab = "Precio (€)")
+
+# Crear categorías ordinales de precio con cuantiles
+afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
+                                  breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
+                                  include.lowest = TRUE,
+                                  labels = c("Muy Bajo", "Bajo", "Medio Bajo", "Medio Alto", "Alto", "Muy Alto"))
+
+# Gráfico de barras de la nueva variable categórica
+barplot(table(afc_fotocasa$priceCategory),
+        col = "lightgreen",
+        main = "Distribución del Precio por Categorías",
+        ylab = "Número de viviendas")
+```
+Este gráfico de barras muestra la distribución de las viviendas según su categoría de precio, creada a partir de cuantiles. El eje Y indica el número de viviendas que pertenecen a cada categoría (por ejemplo: "Muy Bajo", "Bajo", "Alto", etc.).
+
+#### Tabla de contingencia y Chi-cuadrado
+Con el fin de contrastar la hipótesis nula de independencia entre ambas variables, se aplicará un test de independencia $\chi^2$. Para ello se genera la tabla de contingencia de Municipio y Precio, y se aplica el test.
+```{r tabla_cont, include=FALSE}
+# Crear tabla de contingencia Municipio vs Categoría de Precio
+tabla_muni_precio <- table(afc_fotocasa$municipality, afc_fotocasa$priceCategory)
+
+# Mostrar tabla
+# tabla_muni_precio
+
+# Test de independencia (Chi-cuadrado)
+chisq.test(tabla_muni_precio, simulate.p.value = TRUE)
+```
+Como resultado se obtiene un p-valor de 0,0005, por lo que se rechaza la hipótesis nula y se concluye que existe una dependencia estadísticamente significativa entre el municipio y el precio. Así pues, tiene sentido que estudiemos la naturaleza y causas de dicha dependencia con un AFC simple.
+
+A continuación se realiza el AFC comenzando por la seleccíon del número de componentes. Según el siguiente gráfico se puede ver que la primera componente ya explica un 75,6% de la inercia total de la tabla de contingencia, mientras que la segunda apenas explica un 15,2%, por debajo de la inercia media teórica (20%). Por tanto se elegiría solo la primera componente, no obstante, se elgiran las dos primeras para poder generar los gráficos de filas y columnas para poder interpretar el AFC no dándole importancia a la segunda componente.
+
+#### Selección del número de dimensiones
+
+```{r num_dimensiones, echo=FALSE, fig.align='center', fig.height=4, fig.width=4}
+afc_resultado = CA(tabla_muni_precio, graph = FALSE)
+
+# Valores propios (inercia explicada)
+valores_propios = get_eigenvalue(afc_resultado)
+
+# Media teórica de inercia para comparar
+inercia_media = 100 * (1 / nrow(valores_propios))
+
+# Gráfico de varianza explicada por dimensión
+fviz_eig(afc_resultado, addlabels = TRUE) +
+         geom_hline(yintercept = inercia_media, linetype = 2, color = "red") +
+         ggtitle("Varianza Explicada por Componente")
+
+```
+#### Interpretación en el plano factorial
+El primer eje (Dim1), que explica la mayor parte de la inercia (75,6%), separa claramente los municipios según el nivel de precios: a la izquierda se agrupan distritos como Benicalap o Pobles de l’Oest, asociados a precios bajos, mientras que a la derecha destacan L’Eixample y Ciutat Vella, vinculados a precios muy altos. El segundo eje (Dim2), con menor peso (15,2%), añade variabilidad secundaria sin una interpretación tan clara.
+
+En conjunto, el AFC refleja una estructura clara de dependencia entre municipio y nivel de precio, coherente con la geografía socioeconómica de la ciudad.
+
+```{r municipios, echo=FALSE, fig.align='center', fig.height=3, fig.width=6}
+afc_resultado = CA(tabla_muni_precio, graph = FALSE, ncp=2)
+
+# Visualización de municipios (filas)
+fviz_ca_row(afc_resultado, axes = c(1, 2), repel = TRUE, col.row = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+            title = "Municipios según su perfil de precios")
+
+# Visualización de categorías de precio (columnas)
+fviz_ca_col(afc_resultado, axes = c(1, 2), repel = TRUE, col.col = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+            title = "Categorías de Precio según municipios")
+```
+
+### Justificación AFC simple: Subtipo vs. Precio \label{sec:afc_tipo_precio}
+
+Con el fin de realizar un Análisis Factorial de Correspondencias sobre las variables "Subtipo" y "Precio" se han realizado transformaciones previas sobre dichas variables para poder realizar el AFC. La variable "Subtipo" se ha mapeado para traducir los códigos de propertySubtypeId a nombres descriptivos. Por otro lado, el Precio se ha transformado a 6 categorías ordinales clasificándolo de precio muy bajo a precio muy alto.
+
+```{r map_subtipo, include=FALSE}
+# Diccionario para traducir los códigos de propertySubtypeId a nombres descriptivos
+subtype_map <- c("1" = "Piso",
+                 "2" = "Apartamento",
+                 "3" = "Casa o chalet",
+                 "5" = "Casa adosada",
+                 "6" = "Ático",
+                 "7" = "Dúplex",
+                 "8" = "Loft",
+                 "52" = "Bajos",
+                 "54" = "Estudio",
+                 "10" = "Otros")
+# Aplicar el mapeo
+afc_fotocasa$propertySubtypeCat <- subtype_map[as.character(afc_fotocasa$propertySubtypeId)]
+```
+
+```{r trans_precio, include=FALSE}
+# Crear categorías ordinales de precio con cuantiles
+afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
+                                  breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
+                                  include.lowest = TRUE,
+                                  labels = c("Muy Bajo", "Bajo", "Medio Bajo", "Medio Alto", "Alto", "Muy Alto")
+                                  )
+```
+
+
+#### Dependencia entre Subtipo y Precio
+
+Con el fin de contrastar la hipótesis nula de independencia entre ambas variables, se aplicará un test de independencia $\chi^2$. Para ello se genera la tabla de contingencia de Subtipo y Precio, y se aplica el test.
+
+```{r, echo=FALSE,include=FALSE}
+# Tabla de contingencia Subtipo vs Categoría de Precio
+tabla_subtipo_precio <- table(afc_fotocasa$propertySubtypeCat, afc_fotocasa$priceCategory)
+# Mostrar tabla
+tabla_subtipo_precio
+# Test Chi-cuadrado para evaluar independencia
+chisq.test(tabla_subtipo_precio, simulate.p.value = TRUE)
+```
+Como resultado se obtiene un p-valor de 0,0005, por lo que se rechaza la hipótesis nula y se concluye que existe una dependencia estadísticamente significativa entre el subtipo de vivienda y el precio. Así pues, tiene sentido que estudiemos la naturaleza y causas de dicha dependencia con un AFC simple.
+
+#### Análisis Factorial de Correspondencias
+
+A continuación se realiza el AFC comenzando por la seleccíon del número de componentes. Según el siguiente gráfico se puede ver que la primera componente ya explica un 83,3% de la inercia total de la tabla de contingencia, mientras que la segunda solo explica un 13,4%, claramente por debajo de la inercia media teórica (aproximadamente el 32%). Por tanto se elegiría solo la primera componente, no obstante, se elgiran las dos primeras para poder generar los gráficos de filas y columnas para poder interpretar el AFC no dándole importancia a la segunda componente.
+
+```{r, echo=FALSE, fig.align='center', fig.height=3, fig.width=3.5}
+afc_subtipo = CA(tabla_subtipo_precio, graph = FALSE)
+# Inercia explicada por dimensión
+valores_propios_subtipo = get_eigenvalue(afc_subtipo)
+# Inercia media
+inercia_media_subtipo = 100 * (1 / nrow(valores_propios_subtipo))
+# Gráfico de varianza explicada
+fviz_eig(afc_subtipo, addlabels = TRUE) +
+  geom_hline(yintercept = inercia_media_subtipo, linetype = 2, color = "red") +
+  ggtitle("Varianza Explicada por Componente")
+```
 
 ## Reglas de Asociación. \label{sec:reglasasociacion}
 
