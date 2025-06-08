@@ -5,10 +5,11 @@ date: "`r Sys.Date()`"
 output:
   pdf_document: 
     toc: true
-    toc_depth: 3  
+    toc_depth: 3
+    number_sections: TRUE  
   html_document: default
 ---
-```{r setup}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, results = 'hide')
 ```
 
@@ -43,11 +44,11 @@ library(ggrepel)       # PLS-DA, PLS
 library(pROC)          # PLS-DA
 
 # Instalación adicional
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-    install.packages("BiocManager")
-}
+#if (!requireNamespace("BiocManager", quietly = TRUE)) {
+   # install.packages("BiocManager")
+#}
 
-BiocManager::install("mixOmics")
+#BiocManager::install("mixOmics")
 ```
 
 # Introducción.
@@ -100,11 +101,11 @@ Seguidamente realizamos también un gráfico de distancia al modelo, basado en l
 Tras detectar, en cada caso, las observaciones que tenían una T² de Hotelling o una SCR superior al límite establecido, seleccionamos la observación con la T² de Hotelling más alta, y una observación detectada como atípico moderado.
 Analizamos las contribuciones individuales de cada variable a sus altos valores y obtuvimos que por un lado, en el caso del atípico extremo, se debia a que era un ático de lujo en Valencia, por lo que tenía un número elevado de superficie,baños y habitaciones. Y por otro lado, en el caso del atípico moderado, se debía a que el inmueble estaba localizado en una zona con un número elevado de universidades cerca. 
 Por tanto, se asumió que el resto de observaciones con distancias elevadas no se correpondian a errores de codificación ni valores anómalos injustificados, sino que respondían a casos reales y válidos. Por ello, no se consideró necesario excluirlas del análisis, ya que la técnica de PCA captura las tendencias generales del conjunto, pero es esperable que algunas viviendas reales, aunque menos frecuentes, se representen peor o no tengan valores similares al resto.
-Manteniendo estas observaciones podemos reflejar con mayor fidelidad la diversidad y complejidad del mercado inmobiliario analizado.(Todos los gráficos~\ref{fig:dispersion} respectivos al análisis de atípicos esta en el ANEXO del PCA)
+Manteniendo estas observaciones podemos reflejar con mayor fidelidad la diversidad y complejidad del mercado inmobiliario analizado.Todos los gráficos respectivos al análisis de atípicos esta en el \ref{sec:atipicos}.
 
 ## Interpretación.
 Como primer paso en la interpretación del PCA, analizamos la contribución de cada variable a las cuatro primeras componentes principales. 
-Para ello, generamos gráficos de barras que muestran el porcentaje de contribución de cada variable a las dimensiones 1, 2, 3 y 4, eliminando variables que no tienen gran peso en la componente, para así visualizar mejor la información que nos interesa (Gráficos Dim3 y Dim4 en ANEXO)~\ref{fig:contribuciones}.
+Para ello, generamos gráficos de barras que muestran el porcentaje de contribución de cada variable a las dimensiones 1, 2, 3 y 4, eliminando variables que no tienen gran peso en la componente, para así visualizar mejor la información que nos interesa (Gráficos Dim3 y Dim4 en \ref{sec:contribuciones}).
 
 ```{r contribucion_variables_patchwork,fig.align='center',echo=FALSE, fig.width=6.5, fig.height=3,message=FALSE, warning=FALSE}
 g1 <- fviz_contrib(res.pca, choice = "var", axes = 1, fill = "darkred", color = "black",top=6)
@@ -208,7 +209,7 @@ print(xtable(tabla_filtrada),
 ```
 Sin embargo, debido a limitaciones de espacio, en la memoria principal se ha optado por incluir únicamente el clustering basado en los servicios de la ubicación. Hemos priorizado esta división antes que la de confort y comodidad porque consideramos que sus resultados muestran una estructura de agrupamiento más clara y relevante. Además, la clasificación solventa uno de los problemas de la base de datos original: el exceso de barrios y municipios que no permitía un análisis correcto del entorno urbano.
 Así pues, dado que las conclusiones de esta fase del proyecto serán incorporados en estudios posteriores; creemos que su inclusión en la memoria final es imprescindible.
-No obstante, la clasificación en función del confort está disponible en el anexo de CLUSTERING; en caso de que se quiera consultar.
+No obstante, la clasificación en función del confort está disponible en el anexo \ref{sec:confort}; en caso de que se quiera consultar.
 
 ## Clustering de servicios del entorno.
 
@@ -229,7 +230,7 @@ knitr::include_graphics("heatmap_distancias.png")
 Como punto de partida, iniciamos el análisis probando varias técnicas de agrupamiento: el método jerárquico de Ward y los de partición k-medias y k-medioides. En los tres casos, analizamos simultáneamente la suma de cuadrados residual y el coeficiente de Silhouette para determinar el número óptimo de subgrupos.
 Así, seleccionamos k=6 con Ward; k=8 mediante PAM y k=7 aplicando k-medias.
 Una vez divididos los datos, comparamos el coeficiente medio de Silhouette y vimos que, en los grupos obtenidos a partir de las medias, la mayoría de los grupos estaban mejor definidos. Por ello, nos decantamos por los 7 clusters.
-Los gráficos relativos a la selección del método de agrupación no se han incluido en la memoria final, pero se pueden consultar en el anexo de CLUSTERING.
+Los gráficos relativos a la selección del método de agrupación no se han incluido en la memoria final, pero se pueden consultar en el anexo \ref{sec:clusteringDistancias}.
 
 ```{r k_medias, include=FALSE}
 p1 = fviz_nbclust(x = fotocasaServicios, FUNcluster = kmeans, method = "silhouette",
@@ -400,7 +401,7 @@ Tras comparar los anteriores gráficos con el mapa de Valencia, y ver a que zona
 
 **-> Poblats marítims:** Es una zona bien comunicada, con buena oferta de propiedades, alta presencia de supermercados, transporte público, y cercanía a colegios.
 Parece un entorno atractivo para jóvenes y estudiantes, donde la movilidad y el acceso a servicios básicos son clave, o también para estancias vacacionales, porque esta cerca del puerto y la playa.
-Puede tener precios de alquiler más dinámicos, pero no destacan por la amplitud o el número de baños. 
+Puede tener precios de alquiler más reducidos, pero no destacan por la amplitud o el número de baños. 
 
 **-> Centro histórico-pedanías.Z. universitaria:**representa una zona heterogénea: comparte una escasa accesibilidad a servicios urbanos, pero muestra gran variabilidad en cuanto al tamaño, equipamiento y precio de las viviendas. Algunas áreas pueden ofrecer viviendas espaciosas con ascensor, calefacción y a un precio mayor, mientras que otras tienen una oferta más básica. Esta diversidad podría explicarse por la mezcla entre áreas más históricas, otras más funcionales (posiblemente vinculadas al entorno universitario) y otras alejadas de la ciudad.
 
@@ -634,7 +635,7 @@ Este análisis ha revelado patrones sólidos entre las características de los i
 
 # PLS-DA.
 
-Antes de realizar este análisis, comprobamos que nuestra base de datos no cumplía las condiciones de homocedasticidad ni normalidad (ver en el ANEXO)~\ref{fig:fisher}. Esto quiere decir que no podemos aplicar un Análisis Discriminante de Fisher para predecir qué inmuebles serán rebajados.
+Antes de realizar este análisis, comprobamos que nuestra base de datos no cumplía las condiciones de homocedasticidad ni normalidad (ver en el \ref{sec:fisher}. Esto quiere decir que no podemos aplicar un Análisis Discriminante de Fisher para predecir qué inmuebles serán rebajados.
 En su lugar, emplearemos un PLS discriminante; en el que consideraremos como POSITIVOS las viviendas cuyo precio sea menor al precio original. Para ello, hemos convertido la variable primitiva priceAmountDrop en priceDropBinary (0 si el precio baja, 1 si se mantiene estable).
 En la primera fase del análisis, seleccionamos la mayoría de variables disponibles (incluyendo el cluster por servicios diseñado en análisis previos); descartando aquellas cuya información resultaba inservible o redundante.
 Para evitar el diseño de un modelo sesgado, escalamos las variables numéricas y dividimos los datos en los conjuntos de entrenamiento (70%) y test (30%). Además, realizamos un undersampling en la base de entrenamiento eliminando aleatoriamente parte de los pisos sin bajada de precio; puesto que había un fuerte desbalanceo que podía favorecer sistemáticamente las predicciones de la clase predominante.
@@ -739,7 +740,6 @@ Cabe recalcar que la bajada de precio de las viviendas está muy condicionada po
 A continuación, nos propusimos incrementar la eficacia mediante un test de independencia.
 El objetivo era proponer un nuevo modelo formado por las variables que presentaran diferencias significativas entre clases. Así, descartamos la inclusión de variables sin capacidad predictiva, que únicamente generan ruido y disminuyen la fiabilidad de las predicciones.
 A las variables numéricas les aplicamos el test t y a las categóricas el test chi-cuadrada o, en caso de muestras pequeñas, la prueba de Fisher. 
-Todo el proceso descrito hasta este punto está detallado en el anexo del PLS-DA.
 Una vez realizada la selección, volvimos a dividir, escalar y reducir la nueva base de datos y generamos el segundo modelo; compuesto nuevamente por una sola componente principal.
 
 ```{r test_independencia, echo=FALSE, fig.align='center', fig.height=2, fig.width=4}
@@ -1202,3 +1202,785 @@ El valor de R² indica que el modelo es capaz de explicar aproximadamente el 53%
 Es importante tener en cuenta que estos resultados se han obtenido utilizando los mismos datos con los que se entrenó el modelo. Por tanto, no reflejan necesariamente cómo se comportaría el modelo ante nuevos datos no observados, sino que indican su nivel de ajuste dentro del propio conjunto utilizado para construirlo.
 
 Por tanto, se concluye que el modelo presenta un equilibrio adecuado entre ajuste y capacidad predictiva, lo que justifica su utilidad para el análisis. Con 4 componentes, explica un 42.1% de la variabilidad de las variables explicativas y un 53.1% de la variabilidad de la variable respuesta, con una capacidad predictiva interna (Q2) del 50.9%. Además, se detectaron tres observaciones potencialmente anómalas, lo que resulta relevante al interpretar la estabilidad del modelo. En conjunto, estos valores respaldan la calidad del ajuste realizado y proporcionan una base sólida para el análisis posterior.
+
+
+# ANEXO.
+## PCA.
+### Atípicos. \label{sec:atipicos}
+
+```{r, echo=FALSE, warning=FALSE}
+library(knitr)
+library(FactoMineR)
+library(factoextra)
+library(gridExtra)
+library(readxl)
+
+library(ggplot2)
+fotocasa = read_excel("fotocasaImp.xlsx")
+fotocasa <- as.data.frame(fotocasa)
+
+rownames(fotocasa) <- fotocasa[[1]]
+variables <- fotocasa[, c(9,10,11,14,15,16,17,18,19,21,22,23,24,25,26,27,28,29,30,31, 32, 33)]
+cluster_serv <- read.csv("cluster.csv")
+fotocasa$cluster_serv <- cluster_serv$cluster
+fotocasa$cluster_serv <- factor(fotocasa$cluster_serv,
+                                 levels = c(1, 2, 3, 4, 5, 6, 7),
+                                 labels = c("Poblats marítims", "Centro historico-Pedanias-Z. universitaria", "Ruzafa-Jesus-Benicalap", "Periferia", "Aragón-Blasco Íbañez", "Gran Vía-Colón-Z. universitaria","Tarongers"))
+
+res.pca = PCA(variables, scale.unit = TRUE, graph = FALSE, ncp = 10, quanti.sup=21)
+eig.val <- get_eigenvalue(res.pca)
+VPmedio = 100 * (1/nrow(eig.val))
+```
+
+Tras la seleccion de componentes, procedimos a evaluar primeramente la presencia de observaciones atípicas extremas dentro del espacio generado por las componentes principales. Para ello, utilizamos el estadístico T² de Hotelling, que nos permitió medir la distancia de cada observación al centro de la nube de puntos proyectada sobre las primeras 4 componentes.
+
+Este análisis lo llevamos a cabo utilizando las coordenadas (o scores) de cada piso sobre las componentes principales más relevantes, y establecimos umbrales de referencia basados en la distribución F para los niveles de confianza del 95% y 99%. De esta forma, pudimos identificar qué observaciones se alejaban significativamente del comportamiento general del conjunto de datos.
+
+Visualizamos estas distancias T² en un gráfico, donde marcamos las observaciones que superaban los valores críticos. Estas fueron clasificadas como potenciales outliers o casos extremos. 
+
+Con este procedimiento, buscábamos validar la estructura de los datos en el nuevo espacio reducido y garantizar que las observaciones atípicas no afectarán negativamente al análisis. 
+
+```{r distancias_dentro_modelo, echo=FALSE,warning=FALSE,fig.align='center',fig.width=5, fig.height=4}
+K=4
+misScores = res.pca$ind$coord[,1:K]
+miT2 = colSums(t(misScores**2)/eig.val[1:K,1])
+I = nrow(variables)
+F95 = K*(I**2 - 1)/(I*(I - K)) * qf(0.95, K, I-K)
+F99 = K*(I**2 - 1)/(I*(I - K)) * qf(0.99, K, I-K)
+
+plot(1:length(miT2), miT2, type = "p", xlab = "Pisos", ylab = "T2",pch = 1,
+  cex = 0.5,
+  cex.axis = 0.6,
+  cex.lab = 0.6)
+abline(h = F95, col = "orange", lty = 2, lwd = 1.5)
+abline(h = F99, col = "red3", lty = 2, lwd = 1.5)
+library(grid)
+library(gridExtra)
+
+
+p1 = fviz_pca_ind(res.pca, axes = c(1,2), geom = c("point"),
+                  habillage = factor(miT2 > F95)) +
+  tune::coord_obs_pred()
+
+p2 = fviz_pca_ind(res.pca, axes = c(1,3), geom = c("point"), 
+                  habillage = factor(miT2 > F95)) +
+  tune::coord_obs_pred() 
+#Para facilitar su interpretación, también representamos gráficamente las observaciones en los planos principales (componentes 1-2 y 1-3), destacando con distintos colores aquellas que se consideraron atípicas según la estadística calculada.
+```
+```{r funcionT2, echo=FALSE}
+contribT2 = function (X, scores, loadings, eigenval, observ, cutoff = 2) {
+  # X is data matrix and must be centered (or centered and scaled if data were scaled)
+  misScoresNorm = t(t(scores**2) / eigenval)
+  misContrib = NULL
+  for (oo in observ) {
+    print(rownames(scores)[oo])
+    print(scores[oo,])
+    misPCs = which(as.numeric(misScoresNorm[oo,]) > cutoff)
+    lacontri = sapply(misPCs, function (cc) (scores[oo,cc]/eigenval[cc])*loadings[,cc]*X[oo,])
+    lacontri = rowSums((1*(sign(lacontri) == 1))*lacontri)
+    misContrib = cbind(misContrib, lacontri)
+  }
+  colnames(misContrib) = rownames(misScoresNorm[observ,])
+  return(misContrib)
+}
+```
+
+De los pisos detectados como posibles outliers según la distancia T² de Hotelling, se analizó en detalle aquel con el valor más extremo, utilizando una función propia diseñada para este propósito. Esta función calcula las contribuciones individuales de cada variable a la distancia T² de una observación, lo que permite entender con mayor precisión por qué un piso se aleja del centro del espacio PCA. Para ello, se usaron los autovectores desescalados, recuperando la importancia real de cada variable en los componentes principales, y se identificaron aquellas que más aportaban al valor elevado de T². 
+
+```{r calculosT2, echo=FALSE}
+K=4
+# Recuperamos los datos utilizados en el modelo PCA, centrados y escalados
+variablesCE = variables[,setdiff(colnames(variables), c("priceAmountDrop"))]
+variablesCE = scale(variablesCE, center = TRUE, scale = TRUE)
+X = as.matrix(variablesCE)
+
+# Calculamos los loadings a partir de las coordenadas de las variables
+# ya que la librería FactoMineR nos devuelve los loadings ponderados 
+# por la importancia de cada componente principal.
+misLoadings = sweep(res.pca$var$coord[, 1:K], 2, sqrt(res.pca$eig[1:K, 1]), FUN = "/")
+
+# Calculamos las contribuciones
+mycontrisT2 = contribT2(X = X, scores = misScores, loadings = misLoadings, 
+                        eigenval = eig.val[1:K,1], observ = which.max(miT2),
+                        cutoff = 2)
+```
+Antes de realizar el gráfico vimos que las características del piso analizado eran coherentes. El piso seleccionado es un ático de lujo en el centro de Valencia, por lo que es normal que tenga características fuera de lo normal como un número elevado de baños o mucha superficie, y no quiere decir que sean errores de codificación ni valores anómalos injustificados. Por tanto, se asumió que el resto de observaciones con distancias elevadas también respondían a casos reales y válidos, y no se consideró necesario excluirlas del análisis.
+```{r, echo=FALSE, fig.align='center',fig.width=6, fig.height=4}
+par(mar = c(10, 2.3, 3, 1))  # Márgenes: abajo, izquierda, arriba, derecha
+
+barplot(mycontrisT2[,1],
+        las = 2,               # Etiquetas del eje X rotadas verticalmente
+        cex.names = 0.6,       # Tamaño de las etiquetas del eje X
+        main = "Ático Valencia",  # Título personalizado
+        col = "skyblue",       # Color de las barras
+        cex.main = 0.8)        # Tamaño del título
+
+```
+
+Como vemos efectivamente, las variables que más contribuyen para que el modelo detecte al inmueble como atípico son variables como "surface","bathrooms" o "rooms".
+
+
+Tras analizar la distancia de Hotelling T², el siguiente paso fue realizar un gráfico de distancia al modelo, basado en la Suma de Cuadrados de los Residuos (SCR). El objetivo en este caso era identificar atípicos moderados, es decir, aquellos inmuebles cuyas características no estaban siendo capturadas adecuadamente por las componentes principales seleccionadas. 
+Representamos gráficamente los SCRs incorporando límites de referencia basados en una distribución chi-cuadrado (al 95% y 99% de confianza), con el objetivo de detectar qué pisos presentan información que no es bien explicada por los componentes principales seleccionados.
+
+Con este gráfico detectamos observaciones que aunque no se encontraban particularmente alejadas del centro del modelo (baja T²), no se ajustaban bien a la estructura global de los datos.
+
+```{r, echo=FALSE,fig.align='center',fig.width=6, fig.height=4}
+myE = X - misScores %*% t(misLoadings) 
+mySCR = rowSums(myE^2)  
+plot(1:length(mySCR), mySCR, type = "l", main = "Distancia al modelo", 
+     ylab = "SCR", xlab = "Inmbuebles", ylim = c(0,180))
+g = var(mySCR)/(2*mean(mySCR))
+h = (2*mean(mySCR)^2)/var(mySCR)
+chi2lim = g*qchisq(0.95, df = h)
+chi2lim99 = g*qchisq(0.99, df = h)
+abline(h = chi2lim, col = "orange", lty = 2, lwd = 2)
+abline(h = chi2lim99, col = "red3", lty = 2, lwd = 2)
+```
+```{r, include=FALSE}
+# Umbral 99 %
+atipicos_moderados=fotocasa$URL[ mySCR > chi2lim99 ]
+head(atipicos_moderados)
+```
+Tras identificar los pisos que no se ajustaban bien al modelo, es decir, con un SCR superior a los umbrales establecidos, procedimos a analizar sus características particulares. Analizamos en detalle uno de ellos mediante el cálculo de las contribuciones individuales de cada variable a su alto SCR. Así podríamos ver que variables contribuían a que el inmueble no fuera bien representado por el modelo.
+
+```{r, echo=FALSE,fig.align='center',fig.width=6, fig.height=4}
+## Función para calcular las contribuciones a la SCR
+ContriSCR = function(E, SCR) {
+  # E es la matriz de residuos del modelo 
+  # SCR es la suma de cuadrados residual
+  contribucion = NULL
+  for (j in 1:length(SCR)){
+    eind<-E[j,]
+    signo<-sign(eind)
+    contri<-(signo*(eind^2)/SCR[j])*100
+    contribucion<-rbind(contribucion,contri)
+  }
+  rownames(contribucion) = rownames(E)
+  return(contribucion)
+}
+## Calculamos las contribuciones de todas las observaciones
+mycontris = ContriSCR(E = myE, SCR = mySCR)
+## Gráfico para Special_K
+barplot(mycontris["https://www.fotocasa.es/es/alquiler/vivienda/valencia-capital/aire-acondicionado-calefaccion-amueblado/185461803/d",],las=2, cex.names = 0.6,
+        main=c('Contribuciones a SCR para un piso'),col = "skyblue")
+```
+Observamos que este inmueble no presentaba errores evidentes ni valores imposibles, sino que simplemente se trataba de una vivienda con una configuración no tan común, ya que tiene muchas universidades cerca.
+
+Dado que el comportamiento atípico del inmueble se explicaba por una combinación no tan común, pero coherente de variables, consideramos que las demás observaciones con alta SCR probablemente reflejan también perfiles particulares dentro del mercado, y no errores en los datos. 
+
+Por tanto, decidimos no excluirlas del análisis, ya que la técnica de PCA captura las tendencias generales del conjunto, pero es esperable que algunas viviendas reales, aunque menos frecuentes, se representen peor. 
+
+Mantenniendo estas observaciones podemos reflejar con mayor fidelidad la diversidad y complejidad del mercado inmobiliario analizado.
+
+Cabe mencionar que a pesar de ya haber analizado los datos atípicos y concluir que no eran datos erróneos, realizamos un nuevo modelo PCA sin los atípicos extremos (T2 alta), para ver si estaban afectando mucho a la hora de crear las componentes principales. Pero, tras filtrar los pisos anómalos extremos y excluirlos del modelo, el resultado del PCA apenas variaba. Por lo tanto, estos inmuebles no estaban generando componentes innecesarias ni influyendo en los resultados del análisis.
+Teniendo esto en cuenta, continuamos el análisis manteniendo los pisos atípicos en el modelo.
+
+```{r filtrar_anomalos, echo=FALSE}
+anomalas = which(miT2 > F95)
+pisos_sin_anomalos=variables[-anomalas,]
+```
+
+```{r sin_anomalos, echo=FALSE}
+
+# Realizar el PCA con las variables cuantitativas principales
+res.pca_sin_anomalos <- PCA(pisos_sin_anomalos, 
+                            scale.unit = TRUE, 
+                            graph = FALSE, 
+                            ncp = K, 
+                            quanti.sup = 21)  # 21 se marca como variable suplementaria
+
+# Obtener los valores propios (eigenvalues) que representan la varianza explicada
+eig.val <- get_eigenvalue(res.pca_sin_anomalos)
+
+# Calcular el porcentaje de varianza media explicada por componente (100% dividido entre el número de componentes)
+VPmedio <- 100 * (1 / nrow(eig.val))
+
+# Dibujar el gráfico de varianza explicada (scree plot) con línea horizontal en la varianza media
+fviz_eig(res.pca_sin_anomalos, addlabels = TRUE) +
+  geom_hline(yintercept = VPmedio, linetype = 2, color = "red") +
+  labs(title = "Varianza explicada por cada componente (PCA)",
+       y = "Porcentaje de varianza explicada",
+       x = "Componentes principales")
+
+```
+Cabe mencionar que a pesar de ya haber analizado los datos atípicos y concluir que no eran datos erróneos, realizamos un nuevo modelo PCA sin los atípicos extremos (T2 alta), para ver si estaban afectando mucho a la hora de crear las componentes principales. Pero, tras filtrar los pisos anómalos extremos y excluirlos del modelo, el resultado del PCA apenas variaba. Por lo tanto, estos inmuebles no estaban generando componentes innecesarias ni influyendo en los resultados del análisis.
+Teniendo esto en cuenta, continuamos el análisis manteniendo los pisos atípicos en el modelo.
+
+
+### Gráficos de las contribuciones de las variables a las dimensiones. \label{sec:contribuciones}
+
+```{r ,fig.align='center',echo=FALSE, fig.width=7, fig.height=3,message=FALSE, warning=FALSE}
+
+
+#g1 <- fviz_contrib(res.pca, choice = "var", axes = 1, fill = "#FAFAD2", color = "black",top=6)
+#g2 <- fviz_contrib(res.pca, choice = "var", axes = 2, fill = "#FAFAD2", color = "black",top=6)
+g3 <- fviz_contrib(res.pca, choice = "var", axes = 3, fill = "darkred", color = "black",top=7)
+g4 <- fviz_contrib(res.pca, choice = "var", axes = 4, fill = "darkred", color = "black",top=7)
+
+grid.arrange(g3, g4, ncol = 2)
+```
+
+
+## Clustering.
+## Clustering. 
+
+```{r }
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message=FALSE)
+
+library(readxl)
+library(knitr)
+library(cluster)
+library(FactoMineR)
+library(factoextra)
+library(NbClust)
+library(clValid)
+library(grid)
+library(gridExtra)
+library(ggsci)
+
+```
+
+
+```{r , include=FALSE}
+fotocasa = read_excel("fotocasaImp.xlsx")
+
+columnas= colnames(fotocasa)
+# Definir las variables de confort
+confort = c("tieneAscensor", "tieneTrastero", "tieneCalefacción", "tieneAireAcondicionado", "bathrooms", "surface", "rooms"
+)
+# Identificar automáticamente las variables de servicios (aquellas que terminan en "_count")
+servicios = grep("_count$", columnas, value = TRUE)
+# Crear el data.frame de flags
+tabla <- data.frame(
+  Variable   = columnas,
+  Confort    = as.integer(columnas %in% confort),
+  Servicios  = as.integer(columnas %in% servicios),
+  stringsAsFactors = FALSE
+)
+fotocasaServicios = fotocasa[,tabla$Servicios == 1]
+fotocasaServiciosCE = scale(fotocasaServicios, center = TRUE, scale = TRUE)
+```
+
+
+
+### Clustering de Servicios \label{sec:clusteringDistancias}
+
+#### Prueba de distancias
+
+A continuación, se muestran los resultados obtenidos con distintas métricas de distancias que fueron evaluadas pero finalmente descartadas en favor de la distancia euclídea, por ofrecer menor cohesión entre grupos o menor interpretabilidad. 
+
+```{r heatmap_distancias_comparadas, out.width="80%", fig.align='center'}
+library(factoextra)
+library(gridExtra)
+
+# Calcular distancias alternativas
+midist_manhattan <- get_dist(fotocasaServiciosCE, stand = FALSE, method = "manhattan")
+midist_max       <- get_dist(fotocasaServiciosCE, stand = FALSE, method = "maximum")
+midist_canberra  <- get_dist(fotocasaServiciosCE, stand = FALSE, method = "canberra")
+
+# Crear cada gráfico
+p1 <- fviz_dist(midist_manhattan, show_labels = FALSE, lab_size = 0.3,
+                gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) +
+  ggtitle("Distancia Manhattan")
+
+p2 <- fviz_dist(midist_max, show_labels = FALSE, lab_size = 0.3,
+                gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) +
+  ggtitle("Distancia Máxima")
+
+p3 <- fviz_dist(midist_canberra, show_labels = FALSE, lab_size = 0.3,
+                gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) +
+  ggtitle("Distancia Canberra")
+
+# Mostrar los tres juntos
+grid.arrange(p1, p2, p3, nrow = 1)
+#knitr::include_graphics("3mapas.png")
+
+midist_eu <- get_dist(fotocasaServiciosCE, stand = FALSE, method = "euclidean")
+
+```
+
+
+#### Selección de la técnica de agrupación y del número de clusters
+
+  -Método jerárquico de WARD
+En este caso, seleccionamos el resultado con **8 clusters**. Se trataba de la organización con mayor coeficiente de Silhouette, además de una suma de cuadrados residual muy reducida. 
+
+```{r serv_metodoWard, fig.align='center', fig.height=3, fig.width=6}
+library(grid)
+library(gridExtra)
+p1 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = hcut, diss=midist_eu,
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,
+                  hc_metric = "euclidean") + labs(title = "Num. optimo clusters")
+p2 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = hcut, method = "wss",
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,diss=midist_eu,
+                  hc_metric = "euclidean") + labs(title = "Num. optimo clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+  -Método de partición PAM
+  
+A través de la técnica PAM (k-medioides), obteníamos el máximo coeficiente y el mínimo SCR con 10 clusters. Sin embargo, la partición en **8 grupos** reducíamos la complejidad del análisis con índices de calidad muy similares.
+
+```{r serv_pam, fig.align='center', fig.height=2, fig.width=6}
+p1 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = pam, method = "silhouette",
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = pam, method = "wss",
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+  -Método de partición k-medias
+  
+Finalmente, con k-medias se maximizaba el coeficiente de Silhouette dividiendo los pisos en 3 grupos. No obstante, la SCR era todavía excesivamente elevada. La opción que mejor combinaba ambos parámetros era **k=7**.
+
+```{r , fig.align='center', fig.height=2, fig.width=6}
+p1 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = kmeans, method = "silhouette",
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = kmeans, method = "wss",
+             k.max = 10, verbose = FALSE) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+Una vez decidido el número de divisiones en cada método, comparamos los clusters resultantes. Vimos que, aunque los resultados eran similares, las **particiones de k-medias** contenían generalmente menos inmuebles mal clasificados.
+
+```{r , fig.align='center', fig.height=4, fig.width=8}
+clustWARD <- hclust(midist_eu, method="ward.D2")
+gruposWARD <- cutree(clustWARD, k=6)
+clustPAM <- pam(midist_eu, k=8, diss=TRUE)
+set.seed(100)
+clustMEANS <- kmeans(fotocasaServiciosCE, centers = 7, nstart = 20)
+colores = pal_npg("nrc")(6)
+colores2 = pal_npg("nrc")(8)
+colores3=pal_npg("nrc")(7)
+par(mfrow = c(1,3))
+plot(silhouette(gruposWARD, midist_eu), col=colores, border=NA, main = "WARD")
+plot(silhouette(clustPAM$clustering, midist_eu), col=colores2, border=NA, main = "K-MEDIOIDES")
+plot(silhouette(clustMEANS$cluster, midist_eu), col=colores3, border=NA, main = "K-MEDIAS")
+
+```
+
+### Clustering de Confort \label{sec:confort}
+
+```{r confort}
+fotocasaConfort = fotocasa[,tabla$Confort == 1]
+fotocasaConfortCE = scale(fotocasaConfort, center = TRUE, scale = TRUE)
+```
+
+#### Distancias y selección del método de agrupación
+Dado que el conjunto que describe las comodidades ofrecidas por cada piso contiene tanto variables categóricas como numéricas, únicamente podíamos consultar las tendencias de agrupamiento con la distancia de Gower.
+
+```{r heatmap_confort_gower, fig.align='center',out.width="50%"}
+midist_gower <- gower_dist <- daisy(fotocasaConfortCE, metric = "gower")
+fviz_dist(midist_gower, show_labels = TRUE, lab_size = 0.3,
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+#knitr::include_graphics("gower.png")
+
+```
+
+En el mapa de calor encontramos evidencias de la existencia de subgrupos en el conjunto de datos. Con el objetivo de detectar dichos clusters e interpretarlos, comenzamos el análisis probando las técnicas de Ward y k-medioides para determinar cuál generaba resultados más definidos. No aplicamos k-medias porque no habíamos utilizado la distancia euclídea.
+
+  - Método de WARD (k=5)
+```{r confort_metodoWard, fig.align='center', fig.height=2, fig.width=6}
+library(grid)
+library(gridExtra)
+p1 = fviz_nbclust(x = fotocasaConfortCE, FUNcluster = hcut, diss=midist_gower,
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE) + labs(title = "Num. optimo clusters")
+p2 = fviz_nbclust(x = fotocasaConfortCE, FUNcluster = hcut, method = "wss",
+                  hc_method = "ward.D2", k.max = 10, verbose = FALSE,diss=midist_gower) + labs(title = "Num. optimo clusters")
+grid.arrange(p1, p2, nrow = 1)
+```
+
+  -Método PAM (k=6)
+
+```{r confort_pam, fig.align='center', fig.height=2, fig.width=6}
+p1 = fviz_nbclust(x = fotocasaConfortCE, FUNcluster = pam, method = "silhouette",
+             k.max = 10, verbose = FALSE, diss=midist_gower) +
+  labs(title = "Numero optimo de clusters")
+p2 = fviz_nbclust(x = fotocasaConfortCE, FUNcluster = pam, method = "wss",
+             k.max = 10, verbose = FALSE, diss=midist_gower) +
+  labs(title = "Numero optimo de clusters")
+grid.arrange(p1, p2, nrow = 1)  
+```
+Finalmente, nos decantamos por el método *Ward* porque su coeficiente medio de Silhouette era notablemente superior.
+```{r seleccionar_clustering, fig.align='center', fig.width=8, fig.height=4}
+clustWARD <- hclust(midist_gower, method="ward.D2")
+gruposWARD <- cutree(clustWARD, k=5)
+clustPAM <- pam(midist_gower, k =6, diss=TRUE)
+library(ggsci)
+colores = pal_npg("nrc")(5)
+colores2 = pal_npg("nrc")(6)
+par(mfrow = c(1,2))
+plot(silhouette(gruposWARD, midist_gower), col=colores, border=NA, main = "WARD")
+plot(silhouette(clustPAM$clustering, midist_gower), col=colores2, border=NA, main = "K-MEDIOIDES")
+fotocasaConfort$clusterConf=factor(gruposWARD)
+```
+
+#### Análisis de Componentes Principales
+
+Se realizó un PCA de 2 componentes (casi el 60% de la variabilidad) para comprender mejor las características de cada Cluster. 
+```{r pca_confort, fig.align='center', fig.height=2.8, fig.width=4}
+fotocasaConfort$priceAmount=fotocasa$priceAmount
+miPCA = PCA(fotocasaConfort, scale.unit = TRUE, graph = FALSE, ncp=2, quanti.sup="priceAmount", quali.sup="clusterConf")
+eig.val = get_eigenvalue(miPCA)
+Vmedia = 100 * (1/nrow(eig.val))
+fviz_eig(miPCA, addlabels = TRUE) +
+  geom_hline(yintercept=Vmedia, linetype=2, color="red")
+```
+  - Primera componente *(Tamaño útil)*: mayor superficie, más habitaciones y baños (tamaño del piso), positivamente relacionado con el precio. Los clusters se reparten de forma relativamente uniforme, aunque el grupo 1 tiene más viviendas con valores altos en esta variable latente.
+  - Segunda componente *(Equipamiento interior)*: más pisos con aire acondicionado, calefacción, ascensor... Entre otras infraestructuras que aportan valor añadido a la vivienda. En esta dimensión hay una segmentación más clara de los clusters. El cluster 2 destaca positivamente, seguido del 1. Los clusters 4 y 5 son los que peores condiciones ofrecen. 
+```{r pca_confort_GRAFICOS, fig.align='center', fig.height=3, fig.width=7}
+p1=fviz_pca_ind(miPCA,
+             geom = "point",
+             habillage = "clusterConf",
+             palette = "jco",
+             addEllipses = TRUE,        # para ver la nube de cada grupo
+             title = "Individuos por grupo (con elipses)")
+p2 <- fviz_pca_var(miPCA,
+                   col.var = "contrib", # Color según contribución a los ejes
+                   gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+                   repel = TRUE,
+                   title = "Loading plot: variables")
+# Mostrar ambos juntos
+grid.arrange(p1, p2, nrow = 1)
+
+```
+
+```{r , fig.align='center', fig.height=2.2, fig.width=6}
+library(gridExtra)
+library(grid)
+library(ggplot2)
+
+price_por_cluster <- aggregate(priceAmount ~ fotocasaConfort$clusterConf, data = fotocasa, mean)
+colnames(price_por_cluster) <- c("Clúster", "Precio medio (€)")
+rownames(price_por_cluster) <- NULL
+tabla_grob <- tableGrob(price_por_cluster, rows = NULL)
+
+# Cambiar el tamaño de letra en todas las celdas
+tabla_grob$grobs <- lapply(tabla_grob$grobs, function(g) {
+  if ("text" %in% class(g)) {
+    g$gp <- gpar(fontsize = 8)  # Aquí ajustas el tamaño
+  }
+  g
+})
+
+# Crear boxplot con ggplot
+df <- data.frame(cluster = factor(fotocasaConfort$clusterConf), price = fotocasa$priceAmount)
+boxplot_grob <- ggplot(df, aes(x = cluster, y = price)) +
+  geom_boxplot(fill = "lightblue") +
+  ylim(0, 5000) +
+  labs(title = "Distribución del precio por clúster", 
+       x = "Clúster", 
+       y = "Precio (€)") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 8))  # Ajusta aquí el tamaño del título
+
+# Mostrar ambos juntos
+grid.arrange(tabla_grob, boxplot_grob, ncol = 2)
+
+```
+Si comparamos el precio medio de cada cluster, vemos el orden es casi idéntico a la estructura que siguen a lo largo de la segunda componente; únicamente se intercambian los clusters 3 y 4, que a su vez son los que tienen un promedio más parecido. Por lo tanto, podríamos considerar el cluster como una variable ordinal que nos indica el la categoría de cada vivienda (muy relacionada con su precio). Esta división no coincide estrictamente con el tamaño de la vivienda, sino que está más basada en sus condiciones de habitabilidad.
+Los niveles serían los siguientes:
+
+```{r niveles_calidad, fig.align='center', fig.height=1.5, fig.width=6}
+
+library(knitr)
+
+tabla_equivalencia <- data.frame(
+  Nivel = 1:4,
+  Calidad = c("Baja", "Media", "Alta", "Lujo"),
+  Clusters_originales = c("5", "3-4", "1", "2")
+)
+
+kable(tabla_equivalencia, caption = "Correspondencia entre nivel de calidad y clústers")
+
+```
+A continuación, se muestran las frecuencias de pisos en cada una de las nuevas cateorías.
+```{r guardar_resul, fig.align='center', fig.width=4, fig.height=2}
+library(dplyr)
+fotocasa$clusterConf=factor(fotocasaConfort$clusterConf)
+fotocasa <- fotocasa %>%
+  mutate(categoria = case_when(
+    clusterConf == 5 ~ "Baja",
+    clusterConf == 3 ~ "Media",
+    clusterConf == 4 ~ "Media",
+    clusterConf == 1 ~ "Alta",
+    clusterConf == 2 ~ "Lujo"
+  ))
+
+fotocasa$categoria <- factor(fotocasa$categoria,
+                             levels = c("Baja", "Media", "Alta", "Lujo"))
+
+# Ahora vuelve a generar el gráfico (se verá ordenado)
+ggplot(fotocasa, aes(x = categoria)) +
+  geom_bar(fill = "#69b3a2") +
+  labs(title = "Frecuencia por categoría de confort",
+       x = "Categoría",
+       y = "Frecuencia") +
+  theme_minimal()
+
+```
+
+
+## AFC.
+## Reglas de Asociación.
+## Análisis Discriminante de Fisher. \label{sec:fisher}
+```{r, include=FALSE}
+options(tinytex.verbose = TRUE)
+```
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(caret)
+# Librería para validación de métodos supervisados
+# https://cran.r-project.org/web/packages/caret/vignettes/caret.html
+# http://topepo.github.io/caret/index.html
+library(MASS) # Para el análisis discriminante
+library(readxl)
+library(fastDummies)
+library(ggplot2)
+library(tidyr)
+library(biotools)
+library(corrplot)
+library(tinytex)
+```
+
+
+```{r ,message=FALSE, warning=FALSE,echo=FALSE}
+fotocasa = read_excel("fotocasaImp.xlsx")
+# Crear la nueva columna binaryDrop
+fotocasa$binaryDrop <- ifelse(fotocasa$priceAmountDrop > 0, 1, 0)
+
+```
+
+
+En este analisis, intentaremos aplicar la funcion lineal de fisher para predecir, en función de sus características, qué inmuebles bajarán de precio. Lo haremos creando binaryDrop a partir de la variable numérica priceAmountDrop.Los valores de esta nueva variable serán 0 si priceAmountDrop=0 y 1 en el caso contrario (el precio ha bajado recientemente). Consideraremos positivo binaryDrop=1.
+Puesto que las clases se encuentran severamente desbalanceadas (únicamente un 14% de la muestra han bajado de precio), aplicaremos un undersampling para conseguir una proporción 2:1, quedándonos con todos los positivos y parte de los negativos.
+
+```{r selección_variables,message=FALSE, warning=FALSE,echo=FALSE}
+# Seleccionar variables relevantes
+fotocasa <- fotocasa[, c("binaryDrop",
+                         "surface",
+                         "rooms",
+                         "bathrooms",
+                         "floor",
+                         "tieneAscensor",
+                         "tieneTrastero",
+                         "tieneCalefaccion",
+                         "tieneAireAcondicionado",
+                         "priceAmount",
+                         "priceDescription_buy",
+                         "priceDescription_rent",
+                         "hospital_count",
+                         "supermarket_count",
+                         "pharmacy_count",
+                         "university_count",
+                         "college_count",
+                         "public_transport_count")]
+
+fotocasa$tieneTrastero <- as.numeric(as.character(fotocasa$tieneTrastero))
+fotocasa$tieneAscensor <- as.numeric(as.character(fotocasa$tieneAscensor))
+fotocasa$tieneCalefaccion <- as.numeric(as.character(fotocasa$tieneCalefaccion))
+fotocasa$tieneAireAcondicionado <- as.numeric(as.character(fotocasa$tieneAireAcondicionado))
+```
+
+### Correlación entre variables.
+
+En el análisis discriminante de Fisher, es fundamental que se cumplan ciertos supuestos para garantizar la validez de los resultados. Entre ellos destacan: la normalidad multivariante de las variables predictoras dentro de cada grupo, la homogeneidad de las matrices de covarianzas (igualdad de varianzas y covarianzas entre grupos) y la independencia de las observaciones. Un supuesto especialmente importante es la ausencia de colinealidad entre las variables independientes, ya que la colinealidad puede distorsionar los coeficientes discriminantes y afectar la estabilidad del modelo. Cuando las variables están altamente correlacionadas entre sí, se pierde información útil y se dificulta la identificación de las verdaderas diferencias entre los grupos, reduciendo así la capacidad discriminativa del análisis.
+
+Por ello para empezar identificaremos que variables están correlacionadas entre si, y tras crear nuestro modelo comprobaremos si cumple los supuestos para dar por válido el modelo o por el contrario no podemos aplicar el FDA a nuestros datos.
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+
+
+datos <- fotocasa[,-1]
+cor_matriz <- cor(datos, use="complete.obs", method="pearson")
+corrplot(cor_matriz, method="number", type="lower",tl.col="black",tl.cex=0.8, addCoef.col="black",
+         number.cex = 0.4,
+         col = colorRampPalette(c("blue", "white", "red"))(200),  # Escala de color
+         diag = FALSE)             # Oculta la diagonal)
+
+```
+Como vemos hay variables que presentan correlación por lo que debemos excluirlas de nuestro analisis.
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+# 1. Calcula la matriz de correlación
+cor_matriz <- cor(datos)  
+# 2. Encuentra pares con alta correlación (> 0.8)
+umbral <- 0.7
+alta_corr <- findCorrelation(cor_matriz, cutoff = umbral, names = TRUE, exact = TRUE)
+
+# 3. Mostrar qué variables eliminar por colinealidad
+cat("Variables con colinealidad (corr >", umbral, "):\n")
+print(alta_corr)
+
+# 4. Crear nuevo dataset sin esas variables
+fotocasa_filtrado <- fotocasa[, is.na(match(names(fotocasa), alta_corr))]
+
+
+cat("\n Variables finales sin colinealidad:\n")
+print(names(fotocasa_filtrado))
+
+```
+
+
+```{r undersampling,message=FALSE, warning=FALSE,echo=FALSE}
+# 1. Separar las clases
+minority <- fotocasa_filtrado[fotocasa_filtrado$binaryDrop == 1, ]
+majority <- fotocasa_filtrado[fotocasa_filtrado$binaryDrop == 0, ]
+
+# 2. Calcular cuántas observaciones tomar de la clase mayoritaria (2 veces la cantidad de la clase minoritaria)
+n_minority <- nrow(minority)
+n_majority_sample <- 2 * n_minority
+
+# 3. Submuestreo aleatorio de la clase mayoritaria
+set.seed(123)  # Fijar semilla para reproducibilidad
+majority_sample <- majority[sample(nrow(majority), n_majority_sample), ]
+
+# 4. Combinar ambos subconjuntos en uno balanceado con proporción 2:1
+fotocasa_undersampled <- rbind(minority, majority_sample)
+
+# 5. Verificar proporción resultante
+kable(table(fotocasa_undersampled$binaryDrop))
+```
+### Entrenamiento y test.
+
+Una vez seleccionada la base de datos sobre la que aplicaremos el análisis, dividimos las observaciones en un 80% de datos de entrenamiento y 20% de datos de test.
+
+```{r separacion_datos,message=FALSE, warning=FALSE,echo=FALSE}
+set.seed(100)
+fotocasa_undersampled$binaryDrop = factor(fotocasa_undersampled$binaryDrop)
+trainFilas = createDataPartition(fotocasa_undersampled$binaryDrop, p=0.8, list=FALSE)
+head(trainFilas) # trainFilas contiene los números de las filas que irán a Train
+```
+
+
+```{r train_test,message=FALSE, warning=FALSE,echo=FALSE}
+trainDatos = fotocasa_undersampled[trainFilas,]
+testDatos = fotocasa_undersampled[-trainFilas,]
+num = table(trainDatos$binaryDrop)
+perc = round(100*num/sum(num), 2)
+kable(cbind(num, perc))
+```
+
+Para entrenar el modelo, realizaremos la validación cruzada mediante el método k-folds repetido. Las observaciones se dividirán en k=10 grupos y todo el proceso se repetirá r=30 veces.
+
+```{r kfolds,message=FALSE, warning=FALSE,echo=FALSE}
+myTrainControl = trainControl(method = "repeatedcv",  # k-fold
+                              number = 10,  # num folds
+                              repeats = 30) # num veces a repetir CV
+
+```
+
+
+
+
+
+```{r modelo_lda, warning=FALSE,echo=FALSE}
+set.seed(100)
+
+trainDatosESC <- trainDatos
+
+# Identificar las columnas numéricas (excluyendo la variable objetivo)
+vars_escalar <- setdiff(names(trainDatos), "binaryDrop")
+vars_numericas <- vars_escalar[sapply(trainDatos[, vars_escalar], is.numeric)]
+
+# Escalar solo las columnas numéricas
+trainDatosESC[, vars_numericas] <- scale(trainDatos[, vars_numericas]) 
+# Entrenar el modelo LDA
+
+modeloTR <- train(binaryDrop ~ ., data = trainDatosESC, method = 'lda',
+                  trControl = myTrainControl,
+                  preProcess = c("zv")  # ← Esto elimina automáticamente columnas sin varianza en cada fold
+                  )
+modeloTR 
+```
+
+El índice de Kappa del modelo planteado es relativamente bajo; señal de un modelo pobre con poca capacidad predictiva. La variable binaryDrop está muy condicionada por el factor humano y las necesidades y/o intereses individuales del propietario. Puede ser que estas características la vuelvan una variable de naturaleza impredecible. 
+
+No obstante, tampoco hemos comprobado si los datos con los que se ha realizado el modelo cumplen con los requisitos del FDA, por lo que también podría ser esta la causa de estos resultados. 
+
+A continuación comprobaremos los supuestos de normalidad multivariante y homocedasticidad.
+
+```{r warning=FALSE,echo=FALSE}
+
+library(MVN)
+
+grupo <- as.numeric(as.character(fotocasa_filtrado$binaryDrop))
+
+# Divide los datos por grupo (sin la columna binaryDrop)
+grupo_0 <- fotocasa_filtrado[grupo == 0, -1]
+grupo_1 <- fotocasa_filtrado[grupo == 1, -1]
+
+# FUNCION RESUMIDA DE REPORTE
+resumen_normalidad <- function(data, grupo_id) {
+  cat("Grupo", grupo_id, ":\n")
+  res <- mvn(data)
+  
+  # Multivariante (Henze-Zirkler)
+  p_multi <- res$multivariate_normality[["p.value"]]
+  cat("• p-valor Henze-Zirkler:", p_multi)
+  if (p_multi < 0.05) {
+    cat(" → Se rechaza normalidad multivariante\n")
+  } else {
+    cat(" → No se rechaza normalidad multivariante\n")
+  }
+  
+  # Univariantes (Anderson-Darling)
+  uni <- res$univariate_normality
+  no_normales <- sum(uni$p.value < 0.05)
+  cat("• Variables no normales univariantes (p < 0.05):", no_normales, "de", nrow(uni), "\n\n")
+}
+
+# Ejecutar para ambos grupos
+resumen_normalidad(grupo_0, "0 (BajadaPrecio = 0)")
+resumen_normalidad(grupo_1, "1 (BajadaPrecio = 1)")
+```
+
+### Normalidad y homocedasticidad.
+
+Se evaluó el supuesto de normalidad multivariante mediante la prueba de Henze-Zirkler en ambos grupos de la variable binaryDrop (0 = sin bajada de precio, 1 = con bajada).
+
+En ambos casos, el p-valor fue < 0.001, por lo que se rechaza la hipótesis nula de normalidad multivariante.
+
+Además, las pruebas univariantes (Anderson-Darling) para cada variable predictora también resultaron significativas (p < 0.001), lo que refuerza la evidencia de que los datos no siguen una distribución normal en ninguna dimensión.
+
+En consecuencia, no se cumplen los supuestos necesarios para aplicar el análisis discriminante de Fisher (FDA) de forma válida. 
+
+```{r,message=FALSE, warning=FALSE,echo=FALSE}
+grafico_variables <- pivot_longer(
+  fotocasa_filtrado[, -1],
+  cols = everything(),
+  names_to = "variable",
+  values_to = "Valor"
+)
+
+# Visualización
+ggplot (grafico_variables, aes(x = Valor)) +
+  geom_histogram(fill = "pink",color = "black", bins = 30) +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Distribución de variables")
+```
+Aqui se puede apreciar claramente como las variables univariantes no siguen una distribución normal como nos confirmaban las pruebas univariantes (Anderson-Darling) para cada variable predictora.
+
+```{r, warning=FALSE,echo=FALSE}
+# Aplica la prueba de Box de igualdad de matrices de covarianza
+boxM_result <- boxM(fotocasa_filtrado[,-1], fotocasa_filtrado$binaryDrop)
+
+# Imprime el resumen
+print(boxM_result)
+```
+Tras realizar un contraste de hipótesis para comprobar si podiamos asumir o no homocedasticidad en nuestros datos vemos que el p-value obtenido es muchísimo menor que 0.05, y por tanto se rechaza la hipótesis nula de igualdad de matrices de covarianza.
+
+No se cumple la homocedasticidad, ya que las matrices de covarianzas no son iguales entre los grupos.
+
+Con todo esto vemos que nuestros datos son incompatibles con el FDA y por tanto no podemos validar nuestro modelo. Lo descartamos y trataremos de obtener resultando aplicando otros métodos como el PLS-DA.
+
+
+
+
+## PLS.

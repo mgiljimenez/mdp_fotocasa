@@ -15,17 +15,14 @@ suppressPackageStartupMessages({
   library(ropls)
 })
 
+
 ```
 En el análisis anterior, se ha probado que nuestra base de datos no cumple las condiciones de homocedasticidad ni normalidad. Por lo tanto, no es posible aplicar un Análisis Discriminante de Fisher para predecir qué inmuebles serán rebajados.
 En su lugar, emplearemos un PLS discriminante; en el que consideraremos como POSITIVOS las viviendas cuyo precio sea menor al precio original. Para ello, hemos convertido la variable primitiva priceAmountDrop en priceDropBinary (0 si el precio baja, 1 si se mantiene estable).
 En la primera fase del análisis, seleccionamos la mayoría de variables disponibles (incluyendo el cluster por servicios diseñado en análisis previos); descartando aquellas cuya información resultaba inservible o redundante.
 Para evitar el diseño de un modelo sesgado, escalamos las variables numéricas y dividimos los datos en los conjuntos de entrenamiento (70%) y test (30%). Además, realizamos un undersampling en la base de entrenamiento eliminando aleatoriamente parte de los pisos sin bajada de precio; puesto que había un fuerte desbalanceo que podía favorecer sistemáticamente las predicciones de la clase predominante.
-
 ```{r seleccion_datos, echo=FALSE, fig.align='center', fig.height=2, fig.width=4} 
-#install.packages("devtools")
-#devtools::install_github("mixOmicsTeam/mixOmics")
 library(readxl)
-
 library(mixOmics)
 library(patchwork)
 library(dplyr)
@@ -34,20 +31,21 @@ library(ggrepel)
 library(pROC)
 library(gridExtra)
 library(grid)
-library(pROC)
-fotocasa = read_excel("fotocasaImp.xlsx")
+
+fotocasa <- read_excel("fotocasaImp.xlsx")
 fotocasa$priceDropBinary <- ifelse(fotocasa$priceAmountDrop > 0, 1, 0)
 cluster_serv <- read.csv("cluster.csv")
 fotocasa$cluster <- cluster_serv$cluster
-fotocasa_original=fotocasa
-# Limpiar y seleccionar variables relevantes (modifica según variables de tu dataset)
+fotocasa_original <- fotocasa
+
+# Eliminar variables no necesarias
 fotocasa <- fotocasa %>%
-  select(-c(URL, lat, lng, municipality, neighborhood, zipCode,priceAmountDrop, creationDate))
+  dplyr::select(-c(URL, lat, lng, municipality, neighborhood, zipCode, priceAmountDrop, creationDate))
+
 # Tabla original
 tabla_ini <- fotocasa_original %>%
   count(priceDropBinary) %>%
-  mutate(Etapa = "Original",
-         porcentaje = round(100 * n / sum(n), 1))
+  mutate(Etapa = "Original", porcentaje = round(100 * n / sum(n), 1))
 
 # Gráfico original
 g1 <- ggplot(tabla_ini, aes(x = as.factor(priceDropBinary), y = n, fill = as.factor(priceDropBinary))) +
@@ -60,27 +58,22 @@ g1 <- ggplot(tabla_ini, aes(x = as.factor(priceDropBinary), y = n, fill = as.fac
   theme_minimal(base_size = 7) +
   theme(legend.position = "none")
 
-# --- División inicial ---
+# División inicial
 set.seed(456)
 train_indices <- sample(1:nrow(fotocasa), size = 0.7 * nrow(fotocasa))
 fotocasa_train <- fotocasa[train_indices, ]
 fotocasa_test  <- fotocasa[-train_indices, ]
 
-# --- Undersampling SOLO al entrenamiento ---
+# Undersampling en entrenamiento
 fotocasa_train_0 <- filter(fotocasa_train, priceDropBinary == 0)
 fotocasa_train_1 <- filter(fotocasa_train, priceDropBinary == 1)
-
-n1 <- nrow(fotocasa_train_1)
-n0_target <- n1  # misma cantidad que clase 1
-
 set.seed(456)
-fotocasa_train_bal <- bind_rows(sample_n(fotocasa_train_0, n0_target), fotocasa_train_1)
+fotocasa_train_bal <- bind_rows(sample_n(fotocasa_train_0, nrow(fotocasa_train_1)), fotocasa_train_1)
 
 # Tabla tras muestreo
 tabla_fin <- fotocasa_train_bal %>%
   count(priceDropBinary) %>%
-  mutate(Etapa = "Tras muestreo",
-         porcentaje = round(100 * n / sum(n), 1))
+  mutate(Etapa = "Tras muestreo", porcentaje = round(100 * n / sum(n), 1))
 
 # Gráfico tras muestreo
 g2 <- ggplot(tabla_fin, aes(x = as.factor(priceDropBinary), y = n, fill = as.factor(priceDropBinary))) +
@@ -93,7 +86,7 @@ g2 <- ggplot(tabla_fin, aes(x = as.factor(priceDropBinary), y = n, fill = as.fac
   theme_minimal(base_size = 7) +
   theme(legend.position = "none")
 
-# --- Combinar para model.matrix ---
+# Combinar para crear matriz de diseño
 fotocasa_train_bal$set <- "train"
 fotocasa_test$set <- "test"
 fotocasa_both <- bind_rows(fotocasa_train_bal, fotocasa_test)
@@ -111,13 +104,13 @@ fotocasa_both <- fotocasa_both %>%
     tieneAireAcondicionado = as.factor(tieneAireAcondicionado)
   )
 
-# Crear matriz de diseño común
+# Matriz de diseño con model.matrix
 X_all <- fotocasa_both %>%
-  select(-priceDropBinary, -set) %>%
+  dplyr::select(-priceDropBinary, -set) %>%
   model.matrix(~ . - 1, data = .) %>%
   scale()
 
-# Separar nuevamente
+# Separar de nuevo
 X_train <- X_all[fotocasa_both$set == "train", ]
 X_test  <- X_all[fotocasa_both$set == "test", ]
 Y_train <- as.factor(fotocasa_train_bal$priceDropBinary)
@@ -125,8 +118,8 @@ Y_test  <- as.factor(fotocasa_test$priceDropBinary)
 
 # Mostrar gráficos
 g1 + g2
-
 ```
+
 Seguidamente, propusimos el modelo inicial. Aplicamos la validación cruzada con 5 grupos o folds y 10 repeticiones hasta quedarnos con 1 única componente principal, minimizando así el error de predicción.
 Una vez aplicado el modelo al conjunto de test, maximizamos su exactitud balanceada de 0.59 a 0.632 variando el umbral óptimo.
 Seleccionamos esta métrica como medida de calidad porque tiene en cuenta los aciertos en ambas clases de pisos (0, 1), sin proporcionar resultados engañosos ni dejarse condicionar por el desbalanceo.
@@ -214,7 +207,7 @@ fotocasa_both <- fotocasa_both %>%
     propertySubtypeId = as.factor(propertySubtypeId),
     ownerType = as.factor(ownerType),
     tieneCalefaccion = as.factor(tieneCalefaccion),
-    hotWater = as.factor(hotWater),
+    hotWater = as.factor(hotWater)
   )
 # Crear matriz de diseño común
 X_all <- fotocasa_both %>%
@@ -228,11 +221,11 @@ Y_train <- as.factor(fotocasa_train_bal$priceDropBinary)
 Y_test  <- as.factor(fotocasa_test$priceDropBinary)
 plsda_model <- plsda(X_train, Y_train, ncomp= 10)  # 10 componentes posibles
 set.seed(456)
-#perf_plsda <- perf(plsda_model, validation = "Mfold", folds = 5, nrepeat = 10)
+perf_plsda <- perf(plsda_model, validation = "Mfold", folds = 5, nrepeat = 10)
 # Media del BER por componente
-#ber_means <- apply(perf_plsda$error.rate$BER, 2, mean)
-#optimal_ncomp <- which.min(ber_means)
-optimal_ncomp=1
+ber_means <- apply(perf_plsda$error.rate$BER, 2, mean)
+optimal_ncomp <- which.min(ber_means)
+#optimal_ncomp=1
 cat("Componentes óptimos:", optimal_ncomp, "\n")
 scores <- plsda_model$variates$X[, 1]
 # Visualizar distribución por clase

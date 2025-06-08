@@ -1,0 +1,321 @@
+---
+title: "anexoPLSDA"
+author: "Ana Valiente"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Cargar librerías necesarias
+suppressPackageStartupMessages({
+  library(knitr)
+  library(viridis)
+  library(ropls)
+})
+
+```
+
+```{r cargar_biblios, echo=FALSE} 
+library(readxl)
+#install.packages("devtools")
+#devtools::install_github("mixOmicsTeam/mixOmics")
+
+library(mixOmics)
+library(patchwork)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(pROC)
+library(gridExtra)
+library(grid)
+library(pROC)
+
+```
+***ANEXO PLS DISCRIMINANTE***
+
+Con el objetivo de predecir las **fluctuaciones del precio** en las viviendas valencianas, se ha planteado la construcción de varios modelos PLS-DA. La finalidad es encontrar la combinación de variables explicativas que permitan realizar predicciones con la mayor exactitud (balanceada) posible.
+
+Se excluyen las siguientes variables del análisis:
+
+      -URL, lat, lng, zipCode, creationDate (no aportan información relevante)
+      
+      -municipality, neighborhood (incluiremos el cluster servicios en su lugar)
+      
+      -princeAmountDrop (muy relacionada con priceBinaryDrop)
+
+      
+
+```{r seleccionar_datos, echo=FALSE, results='asis'}
+fotocasa = read_excel("fotocasaImp.xlsx")
+fotocasa$priceDropBinary <- ifelse(fotocasa$priceAmountDrop > 0, 1, 0)
+cluster_serv <- read.csv("cluster.csv")
+fotocasa$cluster <- cluster_serv$cluster
+fotocasa_original=fotocasa
+# Limpiar y seleccionar variables relevantes (modifica según variables de tu dataset)
+library(dplyr)
+
+fotocasa <- fotocasa %>%
+  dplyr::select(-c(URL, lat, lng, municipality, neighborhood,
+                   zipCode, priceAmountDrop, creationDate))
+
+
+cat('Variables explicativas consideradas en el análisis: ')
+cat("<small>")
+print(colnames(fotocasa %>% select(-priceDropBinary)))
+cat("</small>")
+```
+
+En el gráfico de frecuencias inicial, vemos un claro **desbalanceo de las clases** (86% N y 14% P). Para evitar obtener un modelo sesgado, inclinado a predecir la clase dominante, efectuaremos un *undersampling* y entrenaremos el modelo con una base reducida de **frecuencias uniformes**. Para validar el modelo de forma realista, separaremos entre datos de test y train y, posteriormente, eliminaremos el desbalanceo de la matriz de entrenamiento.
+En este paso, también escalamos las variables numéricas, puesto  que las diferencias en las magnitudes podrían sesgar los resultados del análisis.
+Una vez separados los datos de prueba y entrenamiento, eliminamos el desbalanceo de estos últimos. 
+
+```{r division_datos, echo=FALSE, fig.align='center', fig.height=2, fig.width=3.5}
+# Tabla original
+tabla_ini <- fotocasa_original %>%
+  count(priceDropBinary) %>%
+  mutate(Etapa = "Original",
+         porcentaje = round(100 * n / sum(n), 1))
+
+# Gráfico original
+g1 <- ggplot(tabla_ini, aes(x = as.factor(priceDropBinary), y = n, fill = as.factor(priceDropBinary))) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = paste0(porcentaje, "%")), vjust = -0.5, size = 2) +
+  scale_fill_manual(values = c("0" = "#6BAED6", "1" = "#FF55C7")) +
+  labs(title = "Distribución original",
+       x = "Clase (priceDropBinary)", y = "Frecuencia") +
+  ylim(0, max(tabla_ini$n) * 1.1) +
+  theme_minimal(base_size = 7) +
+  theme(legend.position = "none")
+
+# --- División inicial ---
+set.seed(456)
+train_indices <- sample(1:nrow(fotocasa), size = 0.7 * nrow(fotocasa))
+fotocasa_train <- fotocasa[train_indices, ]
+fotocasa_test  <- fotocasa[-train_indices, ]
+
+# --- Undersampling SOLO al entrenamiento ---
+fotocasa_train_0 <- filter(fotocasa_train, priceDropBinary == 0)
+fotocasa_train_1 <- filter(fotocasa_train, priceDropBinary == 1)
+
+n1 <- nrow(fotocasa_train_1)
+n0_target <- n1  # misma cantidad que clase 1
+
+set.seed(456)
+fotocasa_train_bal <- bind_rows(sample_n(fotocasa_train_0, n0_target), fotocasa_train_1)
+
+# Tabla tras muestreo
+tabla_fin <- fotocasa_train_bal %>%
+  count(priceDropBinary) %>%
+  mutate(Etapa = "Tras muestreo",
+         porcentaje = round(100 * n / sum(n), 1))
+
+# Gráfico tras muestreo
+g2 <- ggplot(tabla_fin, aes(x = as.factor(priceDropBinary), y = n, fill = as.factor(priceDropBinary))) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = paste0(porcentaje, "%")), vjust = -0.5, size =2) +
+  scale_fill_manual(values = c("0" = "#6BAED6", "1" = "#FF55C7")) +
+  labs(title = "Distribución tras muestreo",
+       x = "Clase (priceDropBinary)", y = "Frecuencia") +
+  ylim(0, max(tabla_ini$n, tabla_fin$n) * 1.1) +
+  theme_minimal(base_size = 7) +
+  theme(legend.position = "none")
+
+# --- Combinar para model.matrix ---
+fotocasa_train_bal$set <- "train"
+fotocasa_test$set <- "test"
+fotocasa_both <- bind_rows(fotocasa_train_bal, fotocasa_test)
+
+# Variables como factor
+fotocasa_both <- fotocasa_both %>%
+  mutate(
+    cluster = as.factor(cluster),
+    propertySubtypeId = as.factor(propertySubtypeId),
+    ownerType = as.factor(ownerType),
+    tieneCalefaccion = as.factor(tieneCalefaccion),
+    tieneTrastero = as.factor(tieneTrastero),
+    tieneAscensor = as.factor(tieneAscensor),
+    hotWater = as.factor(hotWater),
+    tieneAireAcondicionado = as.factor(tieneAireAcondicionado)
+  )
+
+# Crear matriz de diseño común
+X_all <- fotocasa_both %>%
+  select(-priceDropBinary, -set) %>%
+  model.matrix(~ . - 1, data = .) %>%
+  scale()
+
+# Separar nuevamente
+X_train <- X_all[fotocasa_both$set == "train", ]
+X_test  <- X_all[fotocasa_both$set == "test", ]
+Y_train <- as.factor(fotocasa_train_bal$priceDropBinary)
+Y_test  <- as.factor(fotocasa_test$priceDropBinary)
+
+# Mostrar gráficos
+g1 + g2
+```
+
+Utilizamos el conjunto de train para generar la primera versión del modelo predictivo. Seguidamente, implementamos la validación cruzada *k-folds* con k=5 y 10 repeticiones para obtener el número de componentes con el que se minimiza el error de predicción.
+En nuestro modelo pls-DA, el error es menor con 1 única componente principal. No obstante, destacamos el solapamiento entre los inmuebles que bajan de precio y los que no. Esto nos indica que, seguramente, los grupos no están lo suficientemente diferenciados para realizar predicciones acertadas.
+
+
+```{r modelo_y_val_cruzada, echo=FALSE, fig.align='center', fig.height=2, fig.width=4}
+plsda_model <- plsda(X_train, Y_train, ncomp= 10)  # 10 componentes posibles
+
+set.seed(456)
+#perf_plsda <- perf(plsda_model, validation = "Mfold", folds = 5, nrepeat = 10)
+
+# Media del BER por componente
+#ber_means <- apply(perf_plsda$error.rate$BER, 2, mean)
+#optimal_ncomp <- which.min(ber_means)
+optimal_ncomp=1
+cat("Componentes óptimos:", optimal_ncomp, "\n")
+scores <- plsda_model$variates$X[, 1]
+# Visualizar distribución por clase
+df <- data.frame(Score = scores, Clase = Y_train)
+ggplot(df, aes(x = Score, fill = Clase)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Distribución en la Componente 1", x = "Score (Comp 1)", y = "Densidad") +
+  theme_minimal()
+
+```
+
+Dado que nuestro objetivo es predecir correctamente si un piso bajará de precio, pero partimos de un conjunto desbalanceado donde la mayoría se mantienen estables, utilizaremos como medidad de calidad la Exactitud Balanceada *(balanced accuracy)*. Esta métrica tiene en cuenta los aciertos en pisos que bajan como en los que no, evitando que el modelo favorezca sistemáticamente la clase mayoritaria. Así, buscamos un rendimiento más justo y representativo que mejore la utilidad práctica del modelo en ambos casos.
+
+
+```{r validacion, echo=FALSE, fig.align='center', fig.height=3, fig.width=3, message=FALSE, warning=FALSE}
+library(pROC)
+
+# 1. Predicción de clases
+pred <- predict(plsda_model, newdata = X_test)
+pred_class <- pred$class$max.dist[, optimal_ncomp]
+
+# 2. Obtener probabilidades de la clase 1
+prob_class1 <- pred$predict[, "1", optimal_ncomp]
+
+# 3. Matriz de confusión
+conf_matrix <- table(Predicho = factor(pred_class, levels = c(0,1)),
+                     Real = factor(Y_test, levels = c(0,1)))
+print(conf_matrix)
+# 4. Extraer métricas
+tp <- ifelse("1" %in% rownames(conf_matrix) && "1" %in% colnames(conf_matrix), conf_matrix["1", "1"], 0)
+tn <- ifelse("0" %in% rownames(conf_matrix) && "0" %in% colnames(conf_matrix), conf_matrix["0", "0"], 0)
+fp <- ifelse("1" %in% rownames(conf_matrix) && "0" %in% colnames(conf_matrix), conf_matrix["1", "0"], 0)
+fn <- ifelse("0" %in% rownames(conf_matrix) && "1" %in% colnames(conf_matrix), conf_matrix["0", "1"], 0)
+
+accuracy <- (tp + tn) / sum(conf_matrix)
+recall <- ifelse((tp + fn) > 0, tp / (tp + fn), NA)  # Sensibilidad
+specificity <- ifelse((tn + fp) > 0, tn / (tn + fp), NA)
+
+balanced_accuracy <- mean(c(recall, specificity))
+cat("Accuracy:", round(accuracy, 3), "\n")
+cat("Balanced Accuracy:", round(balanced_accuracy, 3), "\n")
+roc_obj <- suppressMessages(roc(Y_test, prob_class1))
+plot(roc_obj,
+     main = "Curva ROC",
+     col = "#2C3E50",
+     lwd = 2,
+     legacy.axes = TRUE)
+```
+
+La curva ROC obtenida para el modelo PLS-DA muestra una capacidad predictiva aceptable, situándose por encima de la línea de referencia (modelo aleatorio). Esto indica que el modelo inicial logra determinar qué pisos bajarán de precio mejor que el azar. 
+Para mejorarlo, calculemos el **umbral de clasificación** que maximiza la **exatitud balanceada**:
+
+```{r umbral_op_balanced, echo=FALSE}
+# Filtrar umbrales válidos
+thresholds <- roc_obj$thresholds
+thresholds <- thresholds[thresholds >= 0 & thresholds <= 1]
+
+# Calcular Balanced Accuracy en cada umbral
+balanced_accs <- sapply(thresholds, function(t) {
+  pred <- ifelse(prob_class1 >= t, 1, 0)
+  conf <- table(factor(pred, levels = c(0,1)), Y_test)
+  tp <- ifelse("1" %in% rownames(conf) && "1" %in% colnames(conf), conf["1", "1"], 0)
+  tn <- ifelse("0" %in% rownames(conf) && "0" %in% colnames(conf), conf["0", "0"], 0)
+  fp <- ifelse("1" %in% rownames(conf) && "0" %in% colnames(conf), conf["1", "0"], 0)
+  fn <- ifelse("0" %in% rownames(conf) && "1" %in% colnames(conf), conf["0", "1"], 0)
+
+  sens <- if ((tp + fn) > 0) tp / (tp + fn) else NA
+  spec <- if ((tn + fp) > 0) tn / (tn + fp) else NA
+  mean(c(sens, spec), na.rm = TRUE)
+})
+
+# Elegir umbral óptimo
+umbral_optimo <- thresholds[which.max(balanced_accs)]
+cat("Umbral óptimo para máxima Balanced Accuracy:", round(umbral_optimo, 3), "\n")
+
+# Aplicar predicción con el umbral óptimo
+pred_optimo <- ifelse(prob_class1 >= umbral_optimo, 1, 0)
+conf_matrix <- table(Predicho = pred_optimo, Real = Y_test)
+print(conf_matrix)
+
+# Métricas finales
+tp <- conf_matrix["1", "1"]
+tn <- conf_matrix["0", "0"]
+fp <- conf_matrix["1", "0"]
+fn <- conf_matrix["0", "1"]
+
+accuracy <- (tp + tn) / sum(conf_matrix)
+sens <- tp / (tp + fn)
+spec <- tn / (tn + fp)
+balanced_acc <- (sens + spec) / 2
+cat("Accuracy:", round(accuracy, 3), "\n")
+cat("Balanced Accuracy:", round(balanced_acc, 3), "\n")
+```
+
+Con el objetivo de **potenciar la capacidad predictiva** efectuaremos un **test de independencia** (t para las variables cuantitativas y chi cuadrada o fisher para las cualitativas); para descartar las variables que no presenten diferencias significativas entre ambas clases.
+Así, descartaremos la inclusión de variables sin capacidad predictiva, que únicamente generan ruido y disminuyen la fiabilidad de las predicciones.
+
+```{r test_independencia, echo=FALSE}
+fotocasa$cluster <- as.factor(fotocasa$cluster)
+fotocasa$ownerType <- as.factor(fotocasa$ownerType)
+fotocasa$propertySubtypeId <- as.factor(fotocasa$propertySubtypeId)
+fotocasa$tieneCalefaccion = as.factor(fotocasa$tieneCalefaccion)
+fotocasa$tieneTrastero = as.factor(fotocasa$tieneTrastero)
+fotocasa$tieneAscensor = as.factor(fotocasa$tieneAscensor)
+fotocasa$hotWater = as.factor(fotocasa$hotWater)
+fotocasa$tieneAireAcondicionado = as.factor(fotocasa$tieneAireAcondicionado)
+# 1. Variables numéricas: t-test
+numeric_vars <- fotocasa %>%
+  select_if(is.numeric) %>%
+  select(-priceDropBinary) %>%
+  colnames()
+
+t_pvals <- sapply(numeric_vars, function(var) {
+  t.test(fotocasa[[var]] ~ fotocasa$priceDropBinary)$p.value
+})
+low_sig_num <- names(t_pvals[t_pvals > 0.2])
+
+# 2. Variables categóricas: chi-cuadrado o Fisher si es necesario
+cat_vars <- fotocasa %>%
+  select_if(~ is.factor(.) | is.character(.)) %>%
+  colnames()
+
+chi_pvals <- sapply(cat_vars, function(var) {
+  tbl <- table(fotocasa[[var]], fotocasa$priceDropBinary)
+  if (all(dim(tbl) > 1)) {
+    if (any(tbl < 5)) {
+      fisher.test(tbl, simulate.p.value = TRUE, B = 2000)$p.value
+    } else {
+      chisq.test(tbl)$p.value
+    }
+  } else {
+    1  # Si no hay variación
+  }
+})
+
+low_sig_cat <- names(chi_pvals[chi_pvals > 0.2])
+
+# 3. Unir las variables irrelevantes
+vars_to_remove <- union(low_sig_num, low_sig_cat)
+
+# 4. Crear dataset reducido
+fotocasa_significativo <- fotocasa %>%
+  select(-all_of(vars_to_remove))
+
+# Ver qué variables se eliminaron
+cat('Variables eliminadas (no presentan diferencias significativas):\n')
+cat(strwrap(paste(vars_to_remove, collapse = ", "), width = 80), sep = "\n")
+```
+A partir de este punto, el análisis del modelo PLS-DA formado por las variables definitivas se expone con detalle en la **memoria principal**.

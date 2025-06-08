@@ -3,7 +3,7 @@ title: "clustering_resumido"
 author: "Ana Valiente"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
+  pdf_document
 
       
 ---
@@ -66,6 +66,10 @@ No obstante, la clasificación en función del confort está disponible en el an
 El paso previo a la clasificación fue comprobar si existían tendencias de agrupación en los pisos basándonos en las variables del cluster. Para ello, elaboramos un *heatmap*. Dado que pretendíamos identificar similitudes entre las infraestructuras ofrecidas por cada ubicación, consideramos adecuado aplicar una medida de cercanía.
 Probamos todas las distancias para variables numéricas disponibles y, finalmente, obtuvimos una tendencia de agrupación más compacta con la euclídea.
 En el mapa resultante, se observan ciertos subgrupos alrededor de la diagonal principal; aunque sería necesario efectuar el clustering para identificar estructuras más claras.
+\begin{footnotesize}
+*(Antes de generar el mapa, se escaló y centró el conjunto de datos sobre el que realizaríamos el análisis. Esto evita sesgos en el cálculo de las distancias y mejora la calidad de los agrupamientos).*
+\end{footnotesize}
+
 
 .
 ```{r heatmap, fig.align='center', out.width="50%"}
@@ -86,10 +90,10 @@ Una vez divididos los datos, comparamos el coeficiente medio de Silhouette y vim
 Los gráficos relativos a la selección del método de agrupación no se han incluido en la memoria final, pero se pueden consultar en el anexo de CLUSTERING.
 
 ```{r k_medias, include=FALSE}
-p1 = fviz_nbclust(x = fotocasaServicios, FUNcluster = kmeans, method = "silhouette",
+p1 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = kmeans, method = "silhouette",
              k.max = 10, verbose = FALSE) +
   labs(title = "Numero optimo de clusters")
-p2 = fviz_nbclust(x = fotocasaServicios, FUNcluster = kmeans, method = "wss",
+p2 = fviz_nbclust(x = fotocasaServiciosCE, FUNcluster = kmeans, method = "wss",
              k.max = 10, verbose = FALSE) +
   labs(title = "Numero optimo de clusters")
 grid.arrange(p1, p2, nrow = 1)
@@ -108,15 +112,16 @@ par(mfrow = c(1,3))
 plot(silhouette(gruposWARD, midist_eu), col=colores, border=NA, main = "WARD")
 plot(silhouette(clustPAM$clustering, midist_eu), col=colores2, border=NA, main = "K-MEDIOIDES")
 plot(silhouette(clustMEANS$cluster, midist_eu), col=colores3, border=NA, main = "K-MEDIAS")
-fotocasaServicios$cluster=clustMEANS$cluster
+fotocasaServiciosCE$cluster=clustMEANS$cluster
 
 ```
 
-A continuación, estudiamos qué variables habían tenido más peso en la nueva clasificación a través de un Análisis de Componentes Principales con 2 dimensiones. Asimismo, utilizamos las columnas cluster y priceAmount como auxiliares para entender su relación con el resto de variables consideradas.
+A continuación, estudiamos qué variables habían tenido más peso en la nueva clasificación a través de un Análisis de Componentes Principales con 2 dimensiones (con las cuales se explica el 65% de la variabilidad total). Asimismo, utilizamos las columnas cluster y priceAmount como auxiliares para entender su relación con el resto de variables consideradas.
 
-```{r fig.align='center', fig.height=3, fig.width=4, include=FALSE}
-fotocasaServicios$cluster=factor(fotocasaServicios$cluster)
-fotocasaServicios$priceAmount=fotocasa$priceAmount
+```{r fig.align='center', include=FALSE}
+fotocasaServicios$cluster <- factor(clustMEANS$cluster)
+fotocasaServicios$priceAmount <- fotocasa$priceAmount
+
 miPCA2 = PCA(fotocasaServicios, scale.unit = TRUE, graph = FALSE, ncp=2, quanti.sup="priceAmount", quali.sup="cluster")
 eig.val = get_eigenvalue(miPCA2)
 Vmedia = 100 * (1/nrow(eig.val))
@@ -125,8 +130,8 @@ fviz_eig(miPCA2, addlabels = TRUE) +
 ```
 
 Al estudiar el score plot, identificamos siete grupos claramente diferenciados. Destacan especialmente los clusters 7 y 1, tan compactos que apenas se distinguen uno o dos individuos. Incluso en las divisiones más dispersas (3 y 4) sus puntos se encuentran bastante próximos.
-Por otra parte, en el loading plot se aprecia que la primera componente está positivamente relacionada con la cantidad de farmacias, colegios, supermercados y conexiones de transporte. En cambio, la segunda depende de los hospitales y universidades. No parece que el precio del piso tenga una gran importancia en esta clasificación.
-Paralelamente, si suporponemos ambos gráficos, parece que el cluster 3 sobresale por estar notablemente mejor comunicado que el resto de grupos. Por el contrario, el cluster 2 es aparentemente el peor ubicado.
+Por otra parte, en el loading plot observamos que la primera componente está positivamente relacionada con la cantidad de farmacias, colegios, supermercados y conexiones de transporte. En cambio, la segunda depende de los hospitales y universidades. No parece que el precio del piso tenga una gran importancia en esta clasificación.
+Paralelamente, si superponemos ambos gráficos, parece que el cluster 3 sobresale por estar notablemente mejor comunicado que el resto de grupos. Por el contrario, el cluster 2 es aparentemente el peor ubicado.
 ```{r pcaPLOTS, fig.align='center', fig.height=3, fig.width=7}
 p1 <- fviz_pca_ind(miPCA2,
                    geom = "point",
