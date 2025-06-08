@@ -186,6 +186,7 @@ La representación del mapa la conseguimos a partir de una API KEY de google clo
 ```{r mapa_clusters, fig.align='center', out.width="0.5\\linewidth"}
 knitr::include_graphics("mapa_clusters.png")
 ```
+
 A partir de la información obtenida en el mapa, hemos diseñado la siguiente clasificación:
 
 ```{r clasificacion_final, fig.align='center', fig.height=1.8, fig.width=7}
