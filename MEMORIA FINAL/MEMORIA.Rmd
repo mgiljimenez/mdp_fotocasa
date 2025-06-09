@@ -2,7 +2,6 @@
 title: 'Análisis del mercado inmobiliario en Valencia.
 Grupo A1-12'
 author: "Ana Vílchez, Ana Valiente, Fátima Taberner, Miguel Gil y Oscar Antonino"
-date: "`r Sys.Date()`"
 output:
   pdf_document: 
     toc: true
@@ -38,6 +37,11 @@ library(tidyr)         # Reglas de Asociación
 library(purrr)         # Reglas de Asociación
 library(arules)        # Reglas de Asociación
 library(arulesViz)     # Reglas de Asociación
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+   install.packages("BiocManager")
+ BiocManager::install("ropls", force = TRUE)
+library(ropls)        # PLS
 library(viridis)       # PLS-DA, PLS
 library(ropls)         # PLS-DA, PLS
 library(mixOmics)      # PLS-DA
@@ -53,18 +57,14 @@ library(pROC)          # PLS-DA
 ```
 
 # Introducción.
-Nuestro conjunto de datos está compuesto por 1867 observaciones; representando cada 
-una de ellas un inmueble en alquiler en la ciudad de Valencia, con sus rasgos característicos. En total, cuenta con 44 variables como el precio del alquiler de la vivienda, sus habitaciones, donde esta localizada, servicios de la zona...
- 
-La fuente principal del estudio ha sido el web scraping a la plataforma Fotocasa, filtrando únicamente las ofertas localizadas en el municipio de Valencia. 
-  
-Y el objetivo principal del estudio es analizar y predecir el precio del alquiler en Valencia en función de sus características y ubicación, además de estudiar qué relación existe entre las diferentes variables y agrupar las viviendas en bloques según sus características.
-
-Para ello, emplearemos distintas técnicas de análisis descriptivo y predictivo.
+En los últimos años, el mercado inmobiliario se ha consolidado como uno de los sectores más competitivos y relevantes de la economía nacional.
+En este contexto tan complejo y dinámico, comprender qué características influyen en el precio final de las viviendas es esencial para la toma de decisiones que afectan directamente a la gran mayoría de los ciudadanos.
+Mediante la aplicación de diversas técnicas estadísticas y de aprendizaje automático estudiadas en la asignatura de MDP I, este análisis busca describir el comportamiento del mercado a la vez que se construyen modelos predictivos que permitan estimar el valor de una vivienda con base en sus características.
+Para ello, a través de webscraping a fotocasa, hemos recopilado un conjunto de datos compuesto por 1867 observaciones; representando cada una de ellas un inmueble en alquiler en la ciudad de Valencia, con sus rasgos característicos. En total, cuenta con 44 variables, que describen desde aspectos de la vivienda (superficie, calidad energética, baños…) hasta cualidades del entorno urbano (precio medio del alquiler, de la venta, servicios ofrecidos por el barrio…) y del propietario.
 
 # Análisis por componentes principales: PCA.
 
-Como primer paso para analizar los datos que obtuvimos a través de la web de Fotocasa, realizamos un análisis de componentes principales (PCA). El objetivo era reducir la dimensionalidad del conjunto de datos de viviendas (manteniendo la mayor varianza posible en los datos) e identificar patrones o tendencias comunes en las características de los inmuebles ofertados.
+Como primer paso para analizar los datos que obtuvimos a través de la web de Fotocasa, se ha realizado un análisis de componentes principales (PCA). El objetivo era reducir la dimensionalidad del conjunto de datos de viviendas (manteniendo la mayor varianza posible en los datos) e identificar patrones o tendencias comunes en las características de los inmuebles ofertados.
 
 ```{r, echo=FALSE, warning=FALSE}
 fotocasa = read_excel("fotocasaImp.xlsx")
@@ -81,7 +81,7 @@ fotocasa$cluster_serv <- factor(fotocasa$cluster_serv,
 Para la realización del PCA seleccionamos de nuestra base de datos 22 variables: 2 de ellas categóricas ordinales, 4 binarias y el resto numéricas.
 Nuestra variable a predecir es "priceAmount" por lo que la tratamos como variable suplementaria para el PCA, es decir, no interviene en la creación de las componentes principales, pero sí se proyecta sobre ellas para ver que variables están relacionadas con ella positivamente, cuales lo estan negativamente y cuales no tienen relación.
 
-Una vez seleccionadas las variables, procedimos a centrarlas para que el algoritmo identificase correctamente las direcciones de mayor variabilidad partiendo de un centro común (el origen). También las estandarizamos, debido a que estaban medidas en distintas unidades (como metros cuadrados, unidades, etc.). Con esta estandarización nos aseguramos que todas las variables tuvieran el mismo peso en el análisis, y evitar así que aquellas con magnitudes numéricas mayores influyeran de forma desproporcionada en la construcción de las componentes principales.
+Una vez seleccionadas las variables, se procede a estandarizarlas, debido a que estaban medidas en distintas unidades (como metros cuadrados, unidades, etc.). Con esta estandarización nos aseguramos que todas las variables tengan el mismo peso en el análisis, y evitar así que aquellas con magnitudes numéricas mayores influyan de forma desproporcionada en la construcción de las componentes principales.
 
 Seguidamente analizamos la varianza explicada por cada una de las componentes principales para seleccionar el número de componentes más adecuado.
 
@@ -94,14 +94,14 @@ fviz_eig(res.pca,barfill = "pink",addlabels=TRUE, barcolor = "black",ggtheme = t
   theme_minimal(base_size = 8) +ggtitle(NULL)
 ```
 
-Como resultado vimos que empleando este método (varianza explicada acumulada), con 8 componentes conseguíamos explicar el 72% de la variabilidad total de nuestros datos, sin embargo, seleccionar 8 componentes complicaría excesivamente la interpretación de los resultados, por lo que decidimos estudiar otros criterios para seleccionar el número de componentes adecuado. Empleamos el método del codo, y obtuvimos que podríamos seleccionar 4 componentes principales, por tanto nos quedamos con esta última cifra para posteriormente facilitar el análisis de los resultados.
+Como resultado, vimos que empleando este método (varianza explicada acumulada), con 8 componentes se explica el 72% de la variabilidad total de nuestros datos, sin embargo, seleccionar 8 componentes complicaría excesivamente la interpretación de los resultados, por lo que estudiamos otros criterios para seleccionar el número de componentes adecuado. Empleamos el método del codo, y obtuvimos que podríamos seleccionar 4 componentes principales, por tanto nos quedamos con esta última cifra para posteriormente facilitar el análisis de los resultados.
 
 ## Análisis de atípicos.
-Tras la seleccion de componentes, procedimos a evaluar primeramente la presencia de observaciones atípicas extremas dentro del espacio generado por las componentes principales. Para ello, utilizamos el estadístico T² de Hotelling, que nos permitió medir la distancia de cada observación al centro de la nube de puntos proyectada sobre las primeras 4 componentes. 
+Tras la seleccion de componentes, procedemos a evaluar primeramente la presencia de observaciones atípicas extremas dentro del espacio generado por las componentes principales. Para ello, utilizamos el estadístico T² de Hotelling, que nos permite medir la distancia de cada observación al centro de la nube de puntos proyectada sobre las primeras 4 componentes. 
 Seguidamente realizamos también un gráfico de distancia al modelo, basado en la Suma de Cuadrados de los Residuos (SCR). El objetivo en en este caso era identificar atípicos moderados, es decir, aquellos inmuebles cuyas características no estaban siendo capturadas adecuadamente por las componentes principales seleccionadas. 
 Tras detectar, en cada caso, las observaciones que tenían una T² de Hotelling o una SCR superior al límite establecido, seleccionamos la observación con la T² de Hotelling más alta, y una observación detectada como atípico moderado.
 Analizamos las contribuciones individuales de cada variable a sus altos valores y obtuvimos que por un lado, en el caso del atípico extremo, se debia a que era un ático de lujo en Valencia, por lo que tenía un número elevado de superficie,baños y habitaciones. Y por otro lado, en el caso del atípico moderado, se debía a que el inmueble estaba localizado en una zona con un número elevado de universidades cerca. 
-Por tanto, se asumió que el resto de observaciones con distancias elevadas no se correpondian a errores de codificación ni valores anómalos injustificados, sino que respondían a casos reales y válidos. Por ello, no se consideró necesario excluirlas del análisis, ya que la técnica de PCA captura las tendencias generales del conjunto, pero es esperable que algunas viviendas reales, aunque menos frecuentes, se representen peor o no tengan valores similares al resto.
+Por tanto, se asume que el resto de observaciones con distancias elevadas no se corresponden a errores de codificación ni valores anómalos injustificados, sino que representan casos reales y válidos. Por ello, no se ha considerado necesario excluirlas del análisis, ya que la técnica de PCA captura las tendencias generales del conjunto, pero es esperable que algunas viviendas reales, aunque menos frecuentes, se representen peor o no tengan valores similares al resto.
 Manteniendo estas observaciones podemos reflejar con mayor fidelidad la diversidad y complejidad del mercado inmobiliario analizado.Todos los gráficos respectivos al análisis de atípicos esta en el \ref{sec:atipicos}.
 
 ## Interpretación.
@@ -116,7 +116,7 @@ g2 <- fviz_contrib(res.pca, choice = "var", axes = 2, fill = "darkred", color = 
 
 grid.arrange(g1, g2, ncol = 2)
 ```
-A partir de los resultados obtenidos extrajimos las siguientes conclusiones:
+A partir de los resultados obtenidos se han extraído las siguientes conclusiones:
 
 • **Dimensión 1:** dominada por variables relacionadas con el entorno y la oferta de servicios (como propertyCounter_buy, college_count, pharmacy_count, propertyCounter_rent, etc.), lo cual sugiere que esta componente resume principalmente la accesibilidad y densidad de servicios en la zona.
 
@@ -127,7 +127,7 @@ A partir de los resultados obtenidos extrajimos las siguientes conclusiones:
 • **Dimensión 4:** vuelve a resaltar variables como priceDescription_buy, priceDescription_rent, junto con tieneAireAcondicionado o college_count. Esta dimensión podría reflejar un eje entre características de confort del inmueble y variables de contexto económico/educativo.
 
 
-Para reforzar la información obtenida del gráfico de contribuciones a cada componente principal generamos varios gráficos donde se muestran las variables proyectadas sobre las diferentes componentes principales. Concretamente, representamos los planos formados por las combinaciones de componentes (1,2) y (3,4). Para una mejor visualización hemos proyectado solo las 10 y 6 variables que más contribuían a la formación de los respectivos ejes.
+Para reforzar la información obtenida del gráfico de contribuciones a cada componente principal generamos varios gráficos donde se muestran las variables proyectadas sobre las diferentes componentes principales. Concretamente, representamos los planos formados por las combinaciones de componentes (1,2) y (3,4). Para una mejor visualización hemos proyectado solo las 10 y 6 variables que más contribuyen a la formación de los respectivos ejes.
 
 
 ```{r pca_var_combinado, echo=FALSE, fig.width=6, fig.height=3,fig.align='center'}
@@ -170,7 +170,7 @@ Por otro lado, vemos como en los planos (3,4), en el eje de la Dim3, "environmen
 Además cabe mencionar de nuevo que la variable "priceAmount" la proyectamos como auxiliar, de esta forma se ve como esta relacionada con el resto de variables sin influir en la creación de las componentes. En este caso que comentábamos se ve claramente que a más superficie, baños y habitaciones claramente más precio, y en el segundo gráfico se comporta como las variables "priceDescription_buy" y "priceDescription_rent", lo que confirma que a menor consumo y contaminación mayor precio.
 
 
-Hasta ahora no habíamos representado los scores (cada inmueble) en el espacio de componentes principales, ya que al tener tantas observaciones no podíamos interpretarlo fácilmente. Para tratar de distinguir tipos de inmuebles por sus características barajamos la opción de resaltar los scores según al barrio de Valencia al que perteneciesen, pero al ser mas de 10 no se distinguían fácilmente. Por todo esto, tras la explicación del clustering realizado a nuestros datos, completaremos el PCA coloreando los inmuebles en el espacio generado por las componentes principales según al cluster al que pertenezcan.
+Hasta ahora no se habían representado los scores (cada inmueble) en el espacio de componentes principales, ya que al tener tantas observaciones no podíamos interpretarlo fácilmente. Para tratar de distinguir tipos de inmuebles por sus características barajamos la opción de resaltar los scores según al barrio de Valencia al que perteneciesen, pero al ser mas de 10 no se distinguían fácilmente. Por todo esto, tras la explicación del clustering realizado a nuestros datos, completaremos el PCA coloreando los inmuebles en el espacio generado por las componentes principales según al cluster al que pertenezcan.
 
 # Clustering.
 
@@ -179,7 +179,7 @@ Para comenzar la exploración, seleccionamos dos grupos de variables para constr
   Clustering de Confort (dimensión interna), enfocado en las condiciones de comodidad y habitabilidad que ofrece la propia vivienda.
   Clustering de Servicios (dimensión externa), refleja la calidad, accesibilidad y otras características del entorno urbano del inmueble.
   
-```{r tabla, results='asis', fig.align='center'}
+```{r tabla, results='asis', fig.align='center', echo=FALSE}
 fotocasa = read_excel("fotocasaImp.xlsx")
 # Vector con nombres de todas las columnas
 columnas= colnames(fotocasa)
@@ -214,8 +214,8 @@ No obstante, la clasificación en función del confort está disponible en el an
 
 ## Clustering de servicios del entorno.
 
-El paso previo a la clasificación fue comprobar si existían tendencias de agrupación en los pisos basándonos en las variables del cluster. Para ello, elaboramos un *heatmap*. Dado que pretendíamos identificar similitudes entre las infraestructuras ofrecidas por cada ubicación, consideramos adecuado aplicar una medida de cercanía.
-Probamos todas las distancias para variables numéricas disponibles y, finalmente, obtuvimos una tendencia de agrupación más compacta con la euclídea.
+El paso previo a la clasificación fue comprobar si existen tendencias de agrupación en los pisos basándonos en las variables del cluster. Para ello, se ha elaboró un *heatmap*. Dado que pretendemos identificar similitudes entre las infraestructuras ofrecidas por cada ubicación, consideramos adecuado aplicar una medida de cercanía.
+Probamos todas las distancias para variables numéricas disponibles y, finalmente, se obtiene una tendencia de agrupación más compacta con la euclídea.
 En el mapa resultante, se observan ciertos subgrupos alrededor de la diagonal principal; aunque sería necesario efectuar el clustering para identificar estructuras más claras.
 
 .
@@ -243,7 +243,7 @@ p2 = fviz_nbclust(x = fotocasaServicios, FUNcluster = kmeans, method = "wss",
 grid.arrange(p1, p2, nrow = 1)
 ```
 
-```{r comparacion, include=FALSE}
+```{r comparacion, include=FALSE, echo=FALSE}
 clustWARD <- hclust(midist_eu, method="ward.D2")
 gruposWARD <- cutree(clustWARD, k=6)
 clustPAM <- pam(midist_eu, k =8, diss=TRUE)
@@ -260,9 +260,9 @@ fotocasaServicios$cluster=clustMEANS$cluster
 
 ```
 
-A continuación, estudiamos qué variables habían tenido más peso en la nueva clasificación a través de un Análisis de Componentes Principales con 2 dimensiones. Asimismo, utilizamos las columnas cluster y priceAmount como auxiliares para entender su relación con el resto de variables consideradas.
+A continuación, estudiamos qué variables tienen más peso en la nueva clasificación a través de un Análisis de Componentes Principales con 2 dimensiones. Asimismo, utilizamos las columnas cluster y priceAmount como auxiliares para entender su relación con el resto de variables consideradas.
 
-```{r fig.align='center', fig.height=3, fig.width=4, include=FALSE}
+```{r fig.align='center', fig.height=3, fig.width=4, include=FALSE, echo=FALSE}
 fotocasaServicios$cluster=factor(fotocasaServicios$cluster)
 fotocasaServicios$priceAmount=fotocasa$priceAmount
 miPCA2 = PCA(fotocasaServicios, scale.unit = TRUE, graph = FALSE, ncp=2, quanti.sup="priceAmount", quali.sup="cluster")
@@ -275,7 +275,7 @@ fviz_eig(miPCA2, addlabels = TRUE) +
 Al estudiar el score plot, identificamos siete grupos claramente diferenciados. Destacan especialmente los clusters 7 y 1, tan compactos que apenas se distinguen uno o dos individuos. Incluso en las divisiones más dispersas (3 y 4) sus puntos se encuentran bastante próximos.
 Por otra parte, en el loading plot se aprecia que la primera componente está positivamente relacionada con la cantidad de farmacias, colegios, supermercados y conexiones de transporte. En cambio, la segunda depende de los hospitales y universidades. No parece que el precio del piso tenga una gran importancia en esta clasificación.
 Paralelamente, si suporponemos ambos gráficos, parece que el cluster 3 sobresale por estar notablemente mejor comunicado que el resto de grupos. Por el contrario, el cluster 2 es aparentemente el peor ubicado.
-```{r pcaPLOTS, fig.align='center', fig.height=3, fig.width=7}
+```{r pcaPLOTS, fig.align='center', fig.height=3, fig.width=7, echo=FALSE}
 p1 <- fviz_pca_ind(miPCA2,
                    geom = "point",
                    habillage = fotocasaServicios$cluster,
@@ -294,7 +294,7 @@ grid.arrange(p1, p2, nrow = 1)
 Para comparar los precios de cada cluster, calculamos sus medias y representamos las 7 distribuciones mediante sus respectivos gráficos de caja y bigotes. Tal como habíamos supuesto al examinar el PCA, no encontramos una diferencia muy acusada entre los precios medios. No obstante, resulta sorprendente que el cluster 2, que habiamos resaltado como el peor ubicado, es el más caro en promedio. Este importe elevado seguramente se deba a los pisos atípicos detectados en su *box&whiskers*, los cuales podrían estar mal clasificados o reflejar una ubicación segmentada internamente entre viviendas básicas y otras más exclusivas.
 El tercer cluster tiene un precio muy similar, aunque con menos pisos atípicos, por lo que seguramente sus viviendas presenten buena comunicación general.
 
-```{r mediasServicios, fig.align='center', fig.height=2.2, fig.width=6}
+```{r mediasServicios, fig.align='center', fig.height=2.2, fig.width=6, echo=FALSE}
 price_por_cluster <- aggregate(priceAmount ~ fotocasaServicios$cluster, data = fotocasa, mean)
 colnames(price_por_cluster) <- c("Clúster", "Precio medio (€)")
 rownames(price_por_cluster) <- NULL
@@ -325,16 +325,16 @@ grid.arrange(tabla_grob, boxplot_grob, ncol = 2)
 ```
 
 ### Representación de los clusters en la ciudad de Valencia.
-Finalmente, para visualizar geográficamente los resultados obtenidos, hemos los 7 clusters en un mapa de la ciudad de Valencia, utilizando las variables latitud y longitud. Así, fue posible determinar a qué zona corresponde cada uno de los grupos.
+Finalmente, para visualizar geográficamente los resultados obtenidos, hemos representado los 7 clusters en un mapa de la ciudad de Valencia, utilizando las variables latitud y longitud. Así, ha sido posible determinar a qué zona corresponde cada uno de los grupos.
 La representación del mapa la conseguimos a partir de una API KEY de google cloud y, por motivos de seguridad, en esta memoria se incluirá en formato png. En la imagen se aprecia como, mientras algunos clusters están muy centrados en una zona concreta, otros se extienden por varios barrios valencianos.
 
-```{r fig.align='center', out.width="0.3\\linewidth"}
+```{r fig.align='center', out.width="0.3\\linewidth", echo=FALSE}
 knitr::include_graphics("mapa_clusters.jpg")
 ```
 
 A partir de la información obtenida en el mapa, hemos diseñado la siguiente clasificación:
 
-```{r clasificacion_final, fig.align='center', fig.height=1.5, fig.width=7}
+```{r clasificacion_final, fig.align='center', fig.height=1.5, fig.width=7, echo=FALSE}
 # Datos base
 clasificacion <- data.frame(
   Cluster = paste("Clúster", 1:7),
@@ -400,7 +400,7 @@ g1
 
 ```
 
-Tras comparar los anteriores gráficos con el mapa de Valencia, y ver a que zona pertenece cada grupo, extrajimos las siguientes conclusiones:
+Tras comparar los anteriores gráficos con el mapa de Valencia, y ver a que zona pertenece cada grupo, se han extraído las siguientes conclusiones:
 
 **-> Poblats marítims:** Es una zona bien comunicada, con buena oferta de propiedades, alta presencia de supermercados, transporte público, y cercanía a colegios.
 Parece un entorno atractivo para jóvenes y estudiantes, donde la movilidad y el acceso a servicios básicos son clave, o también para estancias vacacionales, porque esta cerca del puerto y la playa.
@@ -421,13 +421,13 @@ Puede tener precios de alquiler más reducidos, pero no destacan por la amplitud
 En conjunto, los resultados del clustering muestran una segmentación coherente con la estructura urbana y social de la ciudad, reflejando patrones territoriales que se corresponden con zonas reales y reconocibles. Esta clasificación no solo valida la calidad del análisis, sino que también permite incorporar de forma explícita la dimensión del entorno como variable explicativa en análisis posteriores; mejorando así nuestro entendimiento del mercado inmobiliario valenciano.
 
 
-```{r adjuntar_cluster}
+```{r adjuntar_cluster, echo=FALSE}
 # Supón que quieres copiar la columna "mi_columna" del dataframe df1
 write.csv(fotocasaServicios["cluster"], "cluster.csv", row.names = FALSE)
 
 ```
 
-```{r datos, include=FALSE}
+```{r datos, include=FALSE, echo=FALSE}
 afc_fotocasa = read_excel("data_clean1.xlsx")
 ```
 
@@ -438,7 +438,7 @@ A continuación, se analizan los resultados del Análisis de Correspondencias (A
 
 La justificación detallada del análisis, así como su desarrollo completo, se encuentra en el apartado de Anexos (véase \ref{sec:afc_tipo_precio}). En los gráficos siguientes, la interpretación se centrará exclusivamente en el eje horizontal, dado que este representa el mayor porcentaje de variabilidad explicada (83,3%). En consecuencia, la posición en el eje vertical (Dim2) no será tenida en cuenta en esta lectura.
 
-```{r map_subtipo_mem, include=FALSE}
+```{r map_subtipo_mem, include=FALSE, echo=FALSE}
 # Diccionario para traducir los códigos de propertySubtypeId a nombres descriptivos
 subtype_map <- c("1" = "Piso",
                  "2" = "Apartamento",
@@ -454,7 +454,7 @@ subtype_map <- c("1" = "Piso",
 afc_fotocasa$propertySubtypeCat <- subtype_map[as.character(afc_fotocasa$propertySubtypeId)]
 ```
 
-```{r trans_precio_mem, include=FALSE}
+```{r trans_precio_mem, include=FALSE, echo=FALSE}
 # Crear categorías ordinales de precio con cuantiles
 afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
                                   breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
@@ -472,7 +472,7 @@ tabla_subtipo_precio
 chisq.test(tabla_subtipo_precio, simulate.p.value = TRUE)
 ```
 
-```{r, include=FALSE}
+```{r, include=FALSE, echo=FALSE}
 afc_subtipo = CA(tabla_subtipo_precio, graph = FALSE)
 # Inercia explicada por dimensión
 valores_propios_subtipo = get_eigenvalue(afc_subtipo)
@@ -513,7 +513,7 @@ Una vez procesados los datos, se aplicó el algoritmo **Apriori** con un umbral 
 
 Estas condiciones permiten identificar patrones **robustos y estadísticamente relevantes** que relacionan ciertas configuraciones de un inmueble con su probabilidad de pertenecer a un rango de precio específico. A continuación se muestran las **cinco reglas más destacadas**, ordenadas por su *lift*. Es importante destacar que las 21 reglas comparten el consecuente de **Precio Alto**.
 
-```{r Preparación de los Datos, include=FALSE}
+```{r Preparación de los Datos, include=FALSE, echo=FALSE}
 datosReglas <- read_excel("fotocasaImp.xlsx")
 
 data_variables <- datosReglas %>%
@@ -610,8 +610,8 @@ Este análisis ha revelado patrones sólidos entre las características de los i
 
 Antes de realizar este análisis, comprobamos que nuestra base de datos no cumplía las condiciones de homocedasticidad ni normalidad (ver en el \ref{sec:fisher}. Esto quiere decir que no podemos aplicar un Análisis Discriminante de Fisher para predecir qué inmuebles serán rebajados.
 En su lugar, emplearemos un PLS discriminante; en el que consideraremos como POSITIVOS las viviendas cuyo precio sea menor al precio original. Para ello, hemos convertido la variable primitiva priceAmountDrop en priceDropBinary (0 si el precio baja, 1 si se mantiene estable).
-En la primera fase del análisis, seleccionamos la mayoría de variables disponibles (incluyendo el cluster por servicios diseñado en análisis previos); descartando aquellas cuya información resultaba inservible o redundante.
-Para evitar el diseño de un modelo sesgado, escalamos las variables numéricas y dividimos los datos en los conjuntos de entrenamiento (70%) y test (30%). Además, realizamos un undersampling en la base de entrenamiento eliminando aleatoriamente parte de los pisos sin bajada de precio; puesto que había un fuerte desbalanceo que podía favorecer sistemáticamente las predicciones de la clase predominante.
+En la primera fase del análisis, se han seleccionado la mayoría de variables disponibles (incluyendo el cluster por servicios diseñado en análisis previos); descartando aquellas cuya información resultaba inservible o redundante.
+Para evitar el diseño de un modelo sesgado, escalamos las variables numéricas y dividimos los datos en los conjuntos de entrenamiento (70%) y test (30%). Además, realizamos un undersampling en la base de entrenamiento eliminando aleatoriamente parte de los pisos sin bajada de precio; puesto que en la base original hay un fuerte desbalanceo que podría favorecer sistemáticamente las predicciones de la clase predominante.
 
 ```{r seleccion_datos, echo=FALSE, fig.align='center', fig.height=2, fig.width=4}
 fotocasa = read_excel("fotocasaImp.xlsx")
@@ -705,15 +705,15 @@ Y_test  <- as.factor(fotocasa_test$priceDropBinary)
 g1 + g2
 
 ```
-Seguidamente, propusimos el modelo inicial. Aplicamos la validación cruzada con 5 grupos o folds y 10 repeticiones hasta quedarnos con 1 única componente principal, minimizando así el error de predicción.
+Seguidamente, se ha propuesto el modelo inicial. Aplicamos la validación cruzada con 5 grupos o folds y 10 repeticiones hasta quedarnos con 1 única componente principal, minimizando así el error de predicción.
 Una vez aplicado el modelo al conjunto de test, maximizamos su exactitud balanceada de 0.59 a 0.632 variando el umbral óptimo.
-Seleccionamos esta métrica como medida de calidad porque tiene en cuenta los aciertos en ambas clases de pisos (0, 1), sin proporcionar resultados engañosos ni dejarse condicionar por el desbalanceo.
-Esta primera versión mostraba una capacidad predictiva aceptable, generando mejores resultados que los que se obtendrían por azar.
+Hemos seleccionado esta métrica como medida de calidad porque tiene en cuenta los aciertos en ambas clases de pisos (0, 1), sin proporcionar resultados engañosos ni dejarse condicionar por el desbalanceo.
+Esta primera versión muestra una capacidad predictiva aceptable, generando mejores resultados que los que se obtendrían por azar.
 Cabe recalcar que la bajada de precio de las viviendas está muy condicionada por el factor humano y las condiciones individuales de cada propietario. Por lo tanto, podríamos considerarla una variable de naturaleza impredecible o, al menos, con un comportamiento difícil de modelar.
-A continuación, nos propusimos incrementar la eficacia mediante un test de independencia.
-El objetivo era proponer un nuevo modelo formado por las variables que presentaran diferencias significativas entre clases. Así, descartamos la inclusión de variables sin capacidad predictiva, que únicamente generan ruido y disminuyen la fiabilidad de las predicciones.
+A continuación, intentaremos incrementar la eficacia mediante un test de independencia.
+El objetivo es proponer un nuevo modelo formado por las variables que presentaran diferencias significativas entre clases. Así, descartamos la inclusión de variables sin capacidad predictiva, que únicamente generan ruido y disminuyen la fiabilidad de las predicciones.
 A las variables numéricas les aplicamos el test t y a las categóricas el test chi-cuadrada o, en caso de muestras pequeñas, la prueba de Fisher. 
-Una vez realizada la selección, volvimos a dividir, escalar y reducir la nueva base de datos y generamos el segundo modelo; compuesto nuevamente por una sola componente principal.
+Una vez realizada la selección, volvemos a dividir, escalar y reducir la nueva base de datos y generamos el segundo modelo; compuesto nuevamente por una sola componente principal.
 
 ```{r test_independencia, echo=FALSE, fig.align='center', fig.height=2, fig.width=4}
 fotocasa$cluster <- as.factor(fotocasa$cluster)
@@ -822,7 +822,7 @@ ggplot(df, aes(x = Score, fill = Clase)) +
   labs(title = "Distribución en la Componente 1", x = "Score (Comp 1)", y = "Densidad") +
   theme_minimal()
 ```
-Aunque la distribución obtenida era relativamente uniforme, maximizamos una vez más la exactitud balanceada a través de la curva ROC:
+Aunque se obtiene una distribución relativamente uniforme, se maximiza una vez más la exactitud balanceada a través de la curva ROC:
 ```{r validacion_reducida, echo=FALSE, fig.align='center', fig.height=2.5, fig.width=3}
 library(pROC)
 
@@ -934,7 +934,7 @@ Respecto a las características del piso per se, las plantas altas tienen más p
 
 # PLS
 
-```{r carga_datos_PLS}
+```{r carga_datos_PLS, echo=FALSE}
 fotocasa = read_excel("fotocasaImp.xlsx")
 fotocasa <- as.data.frame(fotocasa)
 rownames(fotocasa) <- as.character(1:nrow(fotocasa))
@@ -979,7 +979,7 @@ invisible(
 
 ```
 
-```{r, echo=FALSE, fig.width=5, fig.height=3.5, out.width="80%"}
+```{r, echo=FALSE, fig.width=5, fig.height=3.5, out.width="80%", fig.align='center'}
 # Este chunk hay que ejecutarlo todo de una, paso a paso da error.
 
 # mypls@modelDF  ## Para recuperar la información de cada componente
@@ -998,7 +998,7 @@ En el gráfico anterior podemos observar que con hasta 4 componentes el valor de
 
 Así pues, parece más adecuado seleccionar 4 componentes. Generamos a continuación el modelo con 4 componentes.
 
-```{r selComps2, echo = TRUE, message = FALSE, warning=FALSE, echo=FALSE}
+```{r selComp2, echo = FALSE, message = FALSE, warning=FALSE, echo=FALSE, fig.align='center'}
 A <- 4
 invisible({
   pdf(file = NULL)
@@ -1010,7 +1010,7 @@ invisible({
 En el resumen se muestra que el modelo cuenta con una buena capacidad predictiva, con un Q² mayor a 0.5, es decir, explica más de un 50% de la variabilidad de la variable estudiada, PriceAmount, así como un error aceptable.
 Para poder entender mejor el modelo, vamos a clasificar las variables en función a la componente a la que pertenecen.
 
-```{r topVars, echo=FALSE, message=FALSE, warning=FALSE}
+```{r topVar, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
 # Obtener pesos estandarizados (loadings) de X
 pesos <- mypls@loadingMN
 
@@ -1036,7 +1036,7 @@ Tras revisar manualmente sus características y precios, comprobamos que se trat
 
 A continuación, debemos evaluar uno de los supuestos del PLS, que es el supuesto de linealidad entre los scores de las variables predictoras y los scores de la variable respuesta. Buscamos representar dicha relación en un gráfico para analizar la relación.
 
-```{r, echo=FALSE, fig.width=5, fig.height=2.5, out.width="70%"}
+```{r, echo=FALSE, fig.width=5, fig.height=2.5, out.width="70%", fig.align='center'}
 par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))  # Ajuste de márgenes
 
 plot(mypls@scoreMN[,1], mypls@uMN[,1], xlab = "t", ylab = "u",
@@ -1052,13 +1052,13 @@ abline(a = 0, b = 1, col = "grey", lty = 3)
 En lo que respecta al gráfico de la componente 1, podemos observar una relación positiva entre t y u, aunque para valores más altos de u se observa cierta dispersión. Sin embargo, como la mayoría de puntos sigue la relación buscada, podemos afirmar que la primera componente captura una relación lineal significativa entre X e Y.
 En cuanto al gráfico de la componente 2, la relación es mucho menos evidente, puesto que no se observa una relación clara y los puntos están considerablemente más dispersos. Esto sugiere que dicha componente no contribuye en gran medida a la relación lineal entre las matrices, ya sea por estar capturando ruido o por tener una estructura de menor relevancia.
 Con el fin de obtener una mayor evidencia en las conclusiones, se va a calcular cada una de las matrices de correlaciones de los componentes.
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.align='center'}
 diag(cor(mypls@scoreMN, mypls@uMN))
 ```
 Podemos observar que la primera componente presenta una correlación moderadamente alta, lo que indica una relación lineal apreciable entre las variables latentes de los conjuntos predictivo y de respuesta. En contraste, las componentes restantes muestran correlaciones débiles, lo que refuerza las conclusiones obtenidas a partir de los gráficos anteriores.
 
 Siguiendo con el análisis, se debe de evaluar la capacidad del modelo creado para reconstruir las variables predictoras originales. Esto se consigue mediante el coeficiente de determinación R2, calculado en la siguiente tabla.
-```{r, echo = FALSE}
+```{r, echo = FALSE, fig.align='center'}
 # Función para calcular R2 global y por variable
 R2 <- function(Y, myYpred){
   SCT_k <- apply(scale(Y), 2, function(i) sum(i^2))      # Suma de cuadrados total por variable
@@ -1089,7 +1089,7 @@ kable(r2_top, digits = 2, caption = "Top 10 variables según R²")
 El R2 global indica que el modelo explica aproximadamente el 42% de la varianza total de las variables X, lo cual sugiere una capacidad explicativa moderada. A nivel individual, algunas variables como surface, college_count y pharmacy_count presentan valores de R2 notablemente altos, evidenciando que el modelo captura bien su estructura. En contraste, variables como tieneTrastero o hospital_count muestran una explicación muy limitada, lo que podría deberse a ruido, no linealidad, o falta de relación con las componentes extraídas.
  
 Tras evaluar la calidad de la reconstrucción del espacio de las variables independientes X, procedemos a calcular el coeficiente de determinación R2 en el espacio de las variables dependientes Y. Este valor nos permite estimar qué proporción de la varianza de la(s) variable(s) objetivo está siendo explicada por el modelo PLS construido.
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.align='center'}
 # Predicciones ajustadas para Y desde el modelo PLS
 myYpred <- fitted(mypls)
 
@@ -1134,7 +1134,7 @@ Ambos modelos muestran una tendencia positiva coherente respecto a la diagonal (
 En este caso, el objetivo es crear un modelo de predicción de precios de vivienda lo más preciso posible, luego optamos por el modelo con todas las variables ya que a pesar de ser más complejo, ofrece una capacidad predictiva mayor que el modelo simplificado.
 
 Para finalizar, realizaremos un análisis para tratar de detectar posibles errores de predicción del modelo.
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.align='center'}
 calcular_errores <- function(y_real, y_pred) {
   y_real <- as.numeric(y_real)
   y_pred <- as.numeric(y_pred)
@@ -1168,7 +1168,7 @@ errores_completo <- calcular_errores(y_real, y_pred_completo)
 print(round(errores_completo, 4))
 
 ```
-Una vez ajustado el modelo PLS con todas las variables, se calcularon diversas métricas de error para evaluar su rendimiento. En concreto, se obtuvieron los siguientes valores: R² = 0.5356, RMSE = 471.2649	, MAE = 292.1782 y MAPE = 18.868%. Estas métricas permiten valorar la calidad del ajuste del modelo, proporcionando información sobre su capacidad explicativa y el tamaño medio del error.
+Una vez ajustado el modelo PLS con todas las variables, se han calculado diversas métricas de error para evaluar su rendimiento. En concreto, se obtuvieron los siguientes valores: R² = 0.5356, RMSE = 471.2649	, MAE = 292.1782 y MAPE = 18.868%. Estas métricas permiten valorar la calidad del ajuste del modelo, proporcionando información sobre su capacidad explicativa y el tamaño medio del error.
 
 El valor de R² indica que el modelo es capaz de explicar aproximadamente el 53% de la variabilidad presente en los datos de salida. Aunque no se trata de un valor extremadamente alto, sí sugiere que el modelo capta cierta estructura subyacente en los datos. Por otro lado, el RMSE y el MAE muestran el tamaño medio del error de predicción en las mismas unidades que la variable respuesta, lo que permite dimensionar cuánto puede desviarse una predicción típica respecto al valor real. En este caso, los errores medios rondan entre 296 y 473 unidades, dependiendo de cómo se midan (absoluto o cuadrático). Finalmente, el MAPE, con un 18.868%, señala que el modelo comete, de media, un error del 19% respecto al valor real, lo cual puede considerarse aceptable o no dependiendo del contexto de la aplicación.
 
@@ -1176,6 +1176,13 @@ Es importante tener en cuenta que estos resultados se han obtenido utilizando lo
 
 Por tanto, se concluye que el modelo presenta un equilibrio adecuado entre ajuste y capacidad predictiva, lo que justifica su utilidad para el análisis. Con 4 componentes, explica un 42.1% de la variabilidad de las variables explicativas y un 53.1% de la variabilidad de la variable respuesta, con una capacidad predictiva interna (Q2) del 50.9%. Además, se detectaron tres observaciones potencialmente anómalas, lo que resulta relevante al interpretar la estabilidad del modelo. En conjunto, estos valores respaldan la calidad del ajuste realizado y proporcionan una base sólida para el análisis posterior.
 
+# Conclusión.
+
+En resumen, este proyecto nos permitió entender mucho mejor cómo funciona el mercado de alquiler en Valencia. A partir de un conjunto de casi 1.900 viviendas obtenidas con web scraping, aplicamos diferentes técnicas para analizar, clasificar y predecir precios.
+
+Pudimos identificar qué factores influyen más en el precio, cómo se agrupan los inmuebles según su entorno y qué combinaciones de características están relacionadas con precios altos o bajos. Además, construimos modelos que nos ayudan tanto a estimar el precio de alquiler como a predecir si un piso bajará de precio, con resultados bastante aceptables.
+
+En general, creemos que el análisis fue útil no solo para describir el mercado, sino también para generar herramientas que podrían aplicarse en estudios similares, en estrategias comerciales o incluso para tomar decisiones de inversión.
 
 # ANEXO.
 ## PCA.
@@ -1602,7 +1609,7 @@ fviz_eig(miPCA, addlabels = TRUE) +
 ```
   - Primera componente *(Tamaño útil)*: mayor superficie, más habitaciones y baños (tamaño del piso), positivamente relacionado con el precio. Los clusters se reparten de forma relativamente uniforme, aunque el grupo 1 tiene más viviendas con valores altos en esta variable latente.
   - Segunda componente *(Equipamiento interior)*: más pisos con aire acondicionado, calefacción, ascensor... Entre otras infraestructuras que aportan valor añadido a la vivienda. En esta dimensión hay una segmentación más clara de los clusters. El cluster 2 destaca positivamente, seguido del 1. Los clusters 4 y 5 son los que peores condiciones ofrecen. 
-```{r pca_confort_GRAFICOS, fig.align='center', fig.height=3, fig.width=7}
+```{r pca_confort_GRAFICO, fig.align='center', fig.height=3, fig.width=7}
 p1=fviz_pca_ind(miPCA,
              geom = "point",
              habillage = "clusterConf",
@@ -1655,7 +1662,7 @@ grid.arrange(tabla_grob, boxplot_grob, ncol = 2)
 Si comparamos el precio medio de cada cluster, vemos el orden es casi idéntico a la estructura que siguen a lo largo de la segunda componente; únicamente se intercambian los clusters 3 y 4, que a su vez son los que tienen un promedio más parecido. Por lo tanto, podríamos considerar el cluster como una variable ordinal que nos indica el la categoría de cada vivienda (muy relacionada con su precio). Esta división no coincide estrictamente con el tamaño de la vivienda, sino que está más basada en sus condiciones de habitabilidad.
 Los niveles serían los siguientes:
 
-```{r niveles_calidad, fig.align='center', fig.height=1.5, fig.width=6}
+```{r niveles_calida, fig.align='center', fig.height=1.5, fig.width=6}
 
 library(knitr)
 
@@ -1669,7 +1676,7 @@ kable(tabla_equivalencia, caption = "Correspondencia entre nivel de calidad y cl
 
 ```
 A continuación, se muestran las frecuencias de pisos en cada una de las nuevas cateorías.
-```{r guardar_resul, fig.align='center', fig.width=4, fig.height=2}
+```{r guardarresul, fig.align='center', fig.width=4, fig.height=2}
 library(dplyr)
 fotocasa$clusterConf=factor(fotocasaConfort$clusterConf)
 fotocasa <- fotocasa %>%
@@ -1702,7 +1709,7 @@ ggplot(fotocasa, aes(x = categoria)) +
 #### Transformación: precios a categorías
 Con el fin de realizar un Análisis Factorial de Correspondencias sobre las variables "Municipio" y "Precio" se ha realizado una transformación previa sobre la variable precio para poder realizar el AFC. "Precio" se ha transformado a 6 categorías ordinales clasificándolo de precio muy bajo a precio muy alto.
 
-```{r trans_muni_precio, echo=FALSE, fig.align='center', fig.height=4, fig.width=8}
+```{r trans_muni_preci, echo=FALSE, fig.align='center', fig.height=4, fig.width=8}
 # Histograma del precio original
 # hist(afc_fotocasa$priceAmount, breaks = 30, col = "lightblue", main = "Distribución del Precio", xlab = "Precio (€)")
 
@@ -1722,7 +1729,7 @@ Este gráfico de barras muestra la distribución de las viviendas según su cate
 
 #### Tabla de contingencia y Chi-cuadrado
 Con el fin de contrastar la hipótesis nula de independencia entre ambas variables, se aplicará un test de independencia $\chi^2$. Para ello se genera la tabla de contingencia de Municipio y Precio, y se aplica el test.
-```{r tabla_cont, include=FALSE}
+```{r tablacont, include=FALSE}
 # Crear tabla de contingencia Municipio vs Categoría de Precio
 tabla_muni_precio <- table(afc_fotocasa$municipality, afc_fotocasa$priceCategory)
 
@@ -1738,7 +1745,7 @@ A continuación se realiza el AFC comenzando por la seleccíon del número de co
 
 #### Selección del número de dimensiones
 
-```{r num_dimensiones, echo=FALSE, fig.align='center', fig.height=4, fig.width=4}
+```{r num_dimensions, echo=FALSE, fig.align='center', fig.height=4, fig.width=4}
 afc_resultado = CA(tabla_muni_precio, graph = FALSE)
 
 # Valores propios (inercia explicada)
@@ -1758,7 +1765,7 @@ El primer eje (Dim1), que explica la mayor parte de la inercia (75,6%), separa c
 
 En conjunto, el AFC refleja una estructura clara de dependencia entre municipio y nivel de precio, coherente con la geografía socioeconómica de la ciudad.
 
-```{r municipios, echo=FALSE, fig.align='center', fig.height=3, fig.width=6}
+```{r municipio, echo=FALSE, fig.align='center', fig.height=3, fig.width=6}
 afc_resultado = CA(tabla_muni_precio, graph = FALSE, ncp=2)
 
 # Visualización de municipios (filas)
@@ -1774,7 +1781,7 @@ fviz_ca_col(afc_resultado, axes = c(1, 2), repel = TRUE, col.col = "contrib", gr
 
 Con el fin de realizar un Análisis Factorial de Correspondencias sobre las variables "Subtipo" y "Precio" se han realizado transformaciones previas sobre dichas variables para poder realizar el AFC. La variable "Subtipo" se ha mapeado para traducir los códigos de propertySubtypeId a nombres descriptivos. Por otro lado, el Precio se ha transformado a 6 categorías ordinales clasificándolo de precio muy bajo a precio muy alto.
 
-```{r map_subtipo, include=FALSE}
+```{r map_subtip, include=FALSE}
 # Diccionario para traducir los códigos de propertySubtypeId a nombres descriptivos
 subtype_map <- c("1" = "Piso",
                  "2" = "Apartamento",
@@ -1790,7 +1797,7 @@ subtype_map <- c("1" = "Piso",
 afc_fotocasa$propertySubtypeCat <- subtype_map[as.character(afc_fotocasa$propertySubtypeId)]
 ```
 
-```{r trans_precio, include=FALSE}
+```{r trans_preci, include=FALSE}
 # Crear categorías ordinales de precio con cuantiles
 afc_fotocasa$priceCategory <- cut(afc_fotocasa$priceAmount,
                                   breaks = quantile(afc_fotocasa$priceAmount, probs = seq(0, 1, length.out = 7), na.rm = TRUE),
@@ -1834,7 +1841,7 @@ fviz_eig(afc_subtipo, addlabels = TRUE) +
 
 A continuación, se han empleado gráficos para explorar visualmente las reglas de asociación: un **diagrama de dispersión (scatter plot)** para analizar la relación entre soporte y confianza, y un **gráfico de coordenadas paralelas** para examinar la estructura interna de las reglas en términos de los atributos que las componen. No se utilizaron representaciones como el grouped matrix ni la matriz de calor, ya que estas técnicas son más adecuadas con combinaciones simples entre pocos ítems. Al estar las reglas formadas por múltiples atributos simultáneos, genera una elevada dimensionalidad y dificulta la interpretación gráfica en formatos matriciales.
 
-```{r Grafico Dispersion, fig.align='center', fig.pos='H', fig.width=7, fig.height=3, echo=FALSE, warning=FALSE, message=FALSE}
+```{r Grafico Dispersio, fig.align='center', fig.pos='H', fig.width=7, fig.height=3, echo=FALSE, warning=FALSE, message=FALSE}
 # Gráfico 1: Dispersión Soporte vs ConfiXanza
 plot(reglas_filtradas, method = "scatterplot", shading = "confidence")
 ```
@@ -1843,7 +1850,7 @@ El gráfico de dispersión muestra la relación entre el soporte y la confianza 
 En términos de confianza, todas superan el umbral mínimo de 0.7, alcanzando valores próximos al 0.97. Esto indica que cuando se cumplen las condiciones del antecedente, la probabilidad de que el precio sea alto es muy elevada.
 Las reglas con mayor confianza tienden a tener un soporte ligeramente menor, lo que sugiere que, si bien son altamente fiables, aplican a un subconjunto más específico del mercado inmobiliario.
 
-```{r Coordenadas Paralelas, fig.width=5, fig.height=2.5, fig.align='center', fig.pos='H', echo=FALSE, warning=FALSE, message=FALSE}
+```{r Coordenadas Paralela, fig.width=5, fig.height=2.5, fig.align='center', fig.pos='H', echo=FALSE, warning=FALSE, message=FALSE}
 # Gráfico 2: Coordenadas paralelas
 par(mar = c(4, 7, 3, 1))  # Márgenes ajustados
 plot(reglas_filtradas, method = "paracoord", shading = "confidence")
@@ -1888,7 +1895,7 @@ fotocasa$binaryDrop <- ifelse(fotocasa$priceAmountDrop > 0, 1, 0)
 En este analisis, intentaremos aplicar la funcion lineal de fisher para predecir, en función de sus características, qué inmuebles bajarán de precio. Lo haremos creando binaryDrop a partir de la variable numérica priceAmountDrop.Los valores de esta nueva variable serán 0 si priceAmountDrop=0 y 1 en el caso contrario (el precio ha bajado recientemente). Consideraremos positivo binaryDrop=1.
 Puesto que las clases se encuentran severamente desbalanceadas (únicamente un 14% de la muestra han bajado de precio), aplicaremos un undersampling para conseguir una proporción 2:1, quedándonos con todos los positivos y parte de los negativos.
 
-```{r selección_variables,message=FALSE, warning=FALSE,echo=FALSE}
+```{r selección_variable,message=FALSE, warning=FALSE,echo=FALSE}
 # Seleccionar variables relevantes
 fotocasa <- fotocasa[, c("binaryDrop",
                          "surface",
@@ -1955,7 +1962,7 @@ print(names(fotocasa_filtrado))
 ```
 
 
-```{r undersampling,message=FALSE, warning=FALSE,echo=FALSE}
+```{r undersamplin,message=FALSE, warning=FALSE,echo=FALSE}
 # 1. Separar las clases
 minority <- fotocasa_filtrado[fotocasa_filtrado$binaryDrop == 1, ]
 majority <- fotocasa_filtrado[fotocasa_filtrado$binaryDrop == 0, ]
@@ -1978,7 +1985,7 @@ kable(table(fotocasa_undersampled$binaryDrop))
 
 Una vez seleccionada la base de datos sobre la que aplicaremos el análisis, dividimos las observaciones en un 80% de datos de entrenamiento y 20% de datos de test.
 
-```{r separacion_datos,message=FALSE, warning=FALSE,echo=FALSE}
+```{r separacion_dato,message=FALSE, warning=FALSE,echo=FALSE}
 set.seed(100)
 fotocasa_undersampled$binaryDrop = factor(fotocasa_undersampled$binaryDrop)
 trainFilas = createDataPartition(fotocasa_undersampled$binaryDrop, p=0.8, list=FALSE)
@@ -1986,7 +1993,7 @@ head(trainFilas) # trainFilas contiene los números de las filas que irán a Tra
 ```
 
 
-```{r train_test,message=FALSE, warning=FALSE,echo=FALSE}
+```{r train_tes,message=FALSE, warning=FALSE,echo=FALSE}
 trainDatos = fotocasa_undersampled[trainFilas,]
 testDatos = fotocasa_undersampled[-trainFilas,]
 num = table(trainDatos$binaryDrop)
@@ -1996,7 +2003,7 @@ kable(cbind(num, perc))
 
 Para entrenar el modelo, realizaremos la validación cruzada mediante el método k-folds repetido. Las observaciones se dividirán en k=10 grupos y todo el proceso se repetirá r=30 veces.
 
-```{r kfolds,message=FALSE, warning=FALSE,echo=FALSE}
+```{r kfold,message=FALSE, warning=FALSE,echo=FALSE}
 myTrainControl = trainControl(method = "repeatedcv",  # k-fold
                               number = 10,  # num folds
                               repeats = 30) # num veces a repetir CV
@@ -2007,7 +2014,7 @@ myTrainControl = trainControl(method = "repeatedcv",  # k-fold
 
 
 
-```{r modelo_lda, warning=FALSE,echo=FALSE}
+```{r modelo_ld, warning=FALSE,echo=FALSE}
 set.seed(100)
 
 trainDatosESC <- trainDatos
@@ -2112,3 +2119,313 @@ Con todo esto vemos que nuestros datos son incompatibles con el FDA y por tanto 
 
 
 ## PLS.
+```{r}
+fotocasa = read_excel("fotocasaImp.xlsx")
+fotocasa <- as.data.frame(fotocasa)
+
+rownames(fotocasa) <- as.character(1:nrow(fotocasa))
+variables <- fotocasa[, c(9,10,11,13,14,15,16,17,18,19,21,22,23,24,25,26,27,28,29,30,31, 32, 33)]
+```
+Definimos las matrices
+```{r, echo= FALSE}
+# Definir variables predictoras y variable objetivo
+X <- variables[, !(names(variables) %in% c("priceAmount", "priceAmountDrop"))]  # Excluir "Precio"
+Y <- variables$priceAmount  # Variable objetivo
+```
+Escalamos las matrices y creamos el modelo con las componentes calculadas.
+```{r selComps2, echo = TRUE, message = FALSE, warning=FALSE, echo=FALSE}
+A <- 4
+mypls = opls(x = X, y = Y, predI = A, crossvalI = 10, scaleC = "standard")
+# plot(mypls)  ## Para recuperar los gráficos que la función opls genera por defecto
+```
+Los gráficos muestran un resumen del modelo, que analizaremos más en profundidad más adelante. Muestra que cuenta con una buena capacidad predictiva, con un Q² mayor a 0.5, es decir, explica más de un 50% de la variabilidad de la variable estudiada, PriceAmount, así como un error aceptable.
+
+#### Variables por componente
+
+Una vez calculados los componentes, para conocer mejor el modelo debemos conocer las 5 variables con más peso por cada componente.
+```{r, echo=FALSE}
+# Obtener pesos estandarizados (loadings) de X
+pesos <- mypls@loadingMN
+
+# Para cada componente, ordenamos las variables por su valor absoluto
+top_vars_por_componente <- apply(pesos, 2, function(comp) {
+  orden <- order(abs(comp), decreasing = TRUE)
+  head(data.frame(Variable = rownames(pesos)[orden], Peso = comp[orden]), 5)
+})
+# Mostrar variables más influyentes por componente
+top_vars_por_componente
+```
+
+#### Atípicos
+```{r, echo=FALSE, fig.width=4, fig.height=4}
+## Creamos una variable ficticia para colorear el gráfico
+proced <- factor(rep("all", nrow(X)))  # Todos en un mismo grupo
+
+## Gráfico de scores con elipse T² (Hotelling)
+plot(x = mypls, typeVc = "x-score",
+     parAsColFcVn = proced,
+     parCexN = 0.8,
+     parCompVi = c(1, 2),
+     parEllipsesL = TRUE,
+     parLabVc = rownames(X),
+     parPaletteVc = NA,
+     parTitleL = TRUE,
+     parCexMetricN = NA)
+```
+Al analizar el gráfico de scores con la elipse de Hotelling T2, se observa que la mayoría de las observaciones se encuentran dentro del límite esperado, lo que indica un comportamiento multivariado normal. Sin embargo, algunas observaciones se sitúan fuera de la elipse, lo que sugiere la posible presencia de valores atípicos.
+A continuación, vamos a calcular el estadístico T2-Hotelling para cada observación de la base de datos, a partir de sus scores y varianza, con el objetivo de establecer unos umbrales que nos permitan detectar outliers extremos.
+```{r Umbral 95, echo=FALSE}
+misScores = mypls@scoreMN
+varT = apply(misScores, 2, var)
+miT2 = colSums(t(misScores**2) / varT)
+N = nrow(X)
+#A = 2
+F95 = A*(N**2 - 1)/(N*(N - A)) * qf(0.95, A, N-A); F95
+```
+
+```{r Umbral 99, echo=FALSE}
+F99 = A*(N**2 - 1)/(N*(N - A)) * qf(0.99, A, N-A); F99
+```
+
+```{r, echo=FALSE}
+plot(as.numeric(rownames(X)), miT2, type = "l",
+     xlab = "Observaciones (líneas del Excel)", ylab = "T²",
+     main = "PLS: T² de Hotelling",
+     ylim = c(0, max(miT2, F99) + 1))
+
+abline(h = F95, col = "orange", lty = 2, lwd = 2)
+abline(h = F99, col = "red3", lty = 2, lwd = 2)
+
+```
+En el gráfico anterior se muestra el valor del estadístico T² de Hotelling para cada observación, junto con los umbrales críticos del 95% (línea naranja discontinua) y del 99% (línea roja discontinua). Estas líneas marcan los límites de confianza para la detección de posibles valores extremos, que tienen el valor de 9.52 y 13.35 respectivamente.
+
+Podemos observar que existen varias observaciones que superan dichos umbrales, lo que indica que podrían ser consideradas atípicas extremas en el espacio de componentes latentes. Estas observaciones se alejan significativamente del centro del modelo, lo cual podría reflejar comportamientos anómalos o patrones particulares en los datos.
+
+Para complementar este análisis de distancias, a continuación se utilizará otra métrica que evalúa el grado de ajuste del modelo para cada observación individual, mediante la suma de cuadrados de los residuos. Se han establecido de nuevo unos umbrales, del 99% y 95%, mediante los cuales podemos detectar outliers moderados.
+```{r, echo=FALSE}
+# Cálculo de la SCR (Suma de Cuadrados Residual)
+myT <- mypls@scoreMN
+myP <- mypls@loadingMN
+myE <- scale(X) - myT %*% t(myP)
+mySCR <- rowSums(myE^2)  # Sum of Squared Residuals (SPE)
+
+# Parámetros para los límites de confianza
+g <- var(mySCR) / (2 * mean(mySCR))
+h <- (2 * mean(mySCR)^2) / var(mySCR)
+chi2lim <- g * qchisq(0.95, df = h)
+chi2lim99 <- g * qchisq(0.99, df = h)
+
+# Gráfico adaptado: eje x = número de fila del Excel
+plot(as.numeric(rownames(X)), mySCR, type = "l", 
+     main = "PLS: Distancia² al modelo", 
+     ylab = "SCR", xlab = "Observaciones (líneas del Excel)",
+     ylim = c(0, max(mySCR, chi2lim99) + 0.5))
+
+abline(h = chi2lim, col = "orange", lty = 2)
+abline(h = chi2lim99, col = "red3", lty = 2)
+
+```
+De nuevo aparecen observaciones que presentan desviaciones notables, esta vez en cuanto a su distancia al modelo. La SCR nos ayuda a detectar datos que, si bien no están alejados en el espacio de componentes, están mal representados por el modelo. Vamos a identificar cuáles son estos valores atípicos para valorar su impacto en el análisis.
+En la siguiente tabla se resumen las observaciones que superan los umbrales de confianza del 95% y 99%, tanto para T² como para SCR. Este cruce nos permite distinguir entre outliers estructurales (por T2), de mal ajuste (por SCR), o ambas cosas.
+```{r, echo=FALSE}
+# Identificar outliers por T2
+outliers_t2_95 <- which(miT2 > F95)
+outliers_t2_99 <- which(miT2 > F99)
+
+# Identificar outliers por SCR
+outliers_scr_95 <- which(mySCR > chi2lim)
+outliers_scr_99 <- which(mySCR > chi2lim99)
+
+# Unir y cruzar
+unique_outliers <- sort(unique(c(outliers_t2_95, outliers_scr_95)))
+outlier_table <- data.frame(
+  Obs = unique_outliers,
+  T2 = miT2[unique_outliers],
+  SCR = mySCR[unique_outliers],
+  T2_95 = miT2[unique_outliers] > F95,
+  T2_99 = miT2[unique_outliers] > F99,
+  SCR_95 = mySCR[unique_outliers] > chi2lim,
+  SCR_99 = mySCR[unique_outliers] > chi2lim99
+)
+
+# Ordenar por SCR o T2 si quieres:
+outlier_table <- outlier_table[order(-outlier_table$SCR), ]
+head(outlier_table, 10)  # Ver los 10 primeros outliers
+
+```
+Los resultados muestran que la mayoría de las observaciones están bien representadas y no presentan valores extremos. Sin embargo, se han identificado algunas que superan claramente los límites de confianza, tanto al 95% como al 99%. En particular, la observación n.º 355 destaca como un outlier evidente según ambos criterios, mientras que otras, como las observaciones 136, 445 o 372, muestran discrepancias más moderadas pero persistentes en su representación por el modelo.
+
+#### Peso de las variables
+```{r, echo=FALSE, fig.width=4, fig.height=4}
+plot(x = mypls, typeVc = "x-loading",
+     parCexN = 0.8, parCompVi = c(1, 2), parPaletteVc = NA,
+     parTitleL = TRUE, parCexMetricN = NA)
+```
+Se observa que las variables surface, bathrooms y rooms presentan una fuerte contribución al modelo, al situarse alejadas del origen. Por el contrario, otras variables como energyEfficiencyRating o tieneAscensor se encuentran próximas al centro del gráfico, lo que sugiere una menor aportación a la varianza explicada por las componentes principales. Esta representación refuerza la selección previa de variables significativas basada en el análisis VIP y los valores-p, al destacar visualmente aquellas que más estructura aportan al modelo.
+
+A continuación, se representa un gráfico de pesos conjuntos (w*c) de las variables predictoras (X) y la variable de respuesta (Y) sobre los dos primeros componentes extraídos mediante el modelo PLS. Este gráfico permite visualizar las relaciones y asociaciones entre variables en el espacio latente común.
+```{r, echo=FALSE, fig.width=4, fig.height=4}
+library(ggplot2)
+library(ggrepel)
+
+# Preparar los datos de weights y c
+# mypls@weightStarMN: pesos estandarizados para X (variables predictoras)
+# mypls@cMN: pesos para Y (variables respuesta)
+data_plot <- rbind(
+  data.frame(mypls@weightStarMN, space = "X"),
+  data.frame(mypls@cMN, space = "Y")
+)
+
+# Añadir columna con el nombre de las variables
+data_plot$variable <- rownames(data_plot)
+
+# Graficar con ggplot2 y ggrepel para evitar superposición de etiquetas
+ggplot(data_plot, aes(x = p1, y = p2, color = space, shape = space)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = variable), size = 3, max.overlaps = 20) +
+  xlim(min(data_plot$p1) - 0.2, max(data_plot$p1) + 0.2) +
+  ylim(min(data_plot$p2) - 0.2, max(data_plot$p2) + 0.2) +
+  coord_fixed(ratio = 1) +
+  theme_bw() +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  labs(
+    x = "w*c (componente 1)",
+    y = "w*c (componente 2)",
+    color = "Espacio",
+    shape = "Espacio",
+    title = "Gráfico de weights personalizado (componentes 1 y 2)"
+  )
+
+```
+En el gráfico se observa cómo las variables predictoras (X, en rojo) y la variable de respuesta (Y, en azul) se proyectan sobre los dos primeros componentes. La proximidad entre la variable de respuesta y1 y algunas variables predictoras sugiere una mayor contribución de estas últimas a la explicación del comportamiento de y1. Por ejemplo, variables como surface, bathrooms, priceDescription_buy o propertyCounter_buy muestran pesos relativamente altos en el mismo cuadrante que y1, indicando una posible asociación positiva en el espacio latente. En cambio, otras variables más alejadas del punto y1 o próximas al origen contribuyen en menor medida al modelo en estos dos primeros componentes.
+
+#### Modelo ajustado
+Esta interpretación puede reforzarse mediante el análisis de los coeficientes de regresión del modelo PLS. En el gráfico de barras que se muestra a continuación, se representan los coeficientes asociados a cada variable predictora, ordenados por su influencia (en valor absoluto) en la predicción. De esta manera, es posible comprobar si las variables que se situaban próximas a la variable de respuesta en el espacio de componentes efectivamente tienen un peso relevante en el modelo, lo que valida la coherencia entre la representación geométrica y la interpretación estadística.
+```{r, echo=FALSE}
+barplot(t(myplsC@coefficientMN[order(abs(myplsC@coefficientMN[,1]), 
+                                     decreasing = TRUE),]), las = 2,
+        main = "PLS regression coefficients")
+
+```
+Este análisis de coeficientes complementa la interpretación de los pesos (weights), ya que mientras las componentes nos muestran la estructura latente compartida entre X e Y, los coeficientes reflejan cómo esa estructura se traduce en una predicción directa. Las variables que ocupaban posiciones alejadas del origen en el gráfico de weights tienden a coincidir con las de mayor magnitud de coeficiente, confirmando su importancia en el modelo.
+
+Sin embargo, el hecho de que una variable tenga un coeficiente alto no garantiza que sea significativa. Para evaluar si las variables aportan información relevante, se lleva a cabo un análisis de significancia estadística mediante p-valores.
+```{r, echo=FALSE}
+pvalJack = function(pls, X, Y){
+  
+  # pls: modelo PLS generado con la librería ropls
+  # X, Y: Matrices de datos proporcionados al modelo PLS
+
+  k = pls@summaryDF$pre
+  coefmod = pls@coefficientMN
+  a=NULL
+  
+  X = scale(X, center = pls@xMeanVn, scale = pls@xSdVn)
+  Y = scale(Y, center = pls@yMeanVn, scale = pls@ySdVn)
+  
+  for (i in 1: nrow(X)) {
+    
+    pls.opls = suppressWarnings(ropls::opls(X[-i, ,drop=FALSE], Y[-i,,drop = FALSE], 
+                                            scaleC='none', predI=k,
+                                            info.txtC='none', fig.pdfC='none', 
+                                            crossvalI=1, permI = 0))
+    
+    if(nrow(pls.opls@coefficientMN)<nrow(coefmod)){
+      exclvar=setdiff(rownames(coefmod),rownames(pls.opls@coefficientMN))
+      b<-matrix(0,ncol=1,nrow = length(exclvar))
+      rownames(b)<-exclvar
+      pls.opls@coefficientMN=rbind(pls.opls@coefficientMN,b)
+      
+    }
+    order <- match(rownames(coefmod), rownames(pls.opls@coefficientMN))
+    plscoefficientMN <- pls.opls@coefficientMN[order, ]
+    a=cbind(a,plscoefficientMN)
+  }
+  
+  est = (a-matrix(rep(coefmod, ncol(a)), ncol = ncol(a)))^2
+  estjack = sqrt(((nrow(X)-1)/nrow(X)) * rowSums(est))
+  
+  pvalor = 2*pt(abs(coefmod/estjack), df = nrow(X)-1, lower.tail = FALSE)
+  
+  colnames(pvalor) = c('pvalue')
+  return(pvalor)
+}
+pvalores = pvalJack(pls = myplsC, X = X, Y = Y)
+round(pvalores, 4)
+```
+Observamos que, al tomar como referencia un nivel de significación del 5%, varias variables no resultan estadísticamente significativas. Por tanto, procedemos a realizar un filtrado adicional mediante el método VIP (Variable Importance in Projection), el cual permite ordenar las variables según su contribución al modelo. Este enfoque nos ayuda a identificar y retener únicamente aquellas variables que aportan mayor información al modelo PLS. Este análisis complementario mediante el método VIP refuerza la evaluación de los coeficientes, permitiendo discriminar de forma más robusta las variables verdaderamente relevantes.
+```{r, echo=FALSE}
+barplot(sort(myplsC@vipVn, decreasing = TRUE), 
+        main = "VIP (Variable Importance in Projection)", 
+        las = 2)
+abline(h = 1, col = "red", lty = 2)
+
+```
+En el gráfico de valores VIP, las variables con un valor superior a 1 —umbral comúnmente aceptado para considerar una variable como relevante— son: surface, bathrooms, priceDescription_buy, rooms, y, muy cerca del umbral, priceDescription_rent. Estas variables pueden considerarse las más importantes dentro del modelo actual.
+
+Procedemos a crear un nuevo modelo con las variables con valores VIP que superan el umbral y a compararlo con el obtenido, para comprobar cuál de los dos modelos se ajusta mejor a los resultados esperados.
+```{r, echo=FALSE}
+vip_vals <- myplsC@vipVn
+vip_filtradas <- sort(vip_vals[vip_vals > 1], decreasing = TRUE)
+vip_filtradas
+
+```
+```{r, echo=FALSE}
+X_reducido <- X[, c("surface", "bathrooms", "priceDescription_buy", "rooms")]
+mypls_reducido <- opls(X_reducido, Y,
+                       predI = 1,
+                       scaleC = "standard",
+                       crossvalI = 10,
+                       info.txtC = "none",
+                       fig.pdfC = "none")
+
+```
+
+```{r, echo=FALSE}
+# Modelo completo
+Y_pred_completo <- fitted(myplsC)
+R2_completo <- 1 - sum((Y - Y_pred_completo)^2) / sum((Y - mean(Y))^2)
+
+# Modelo reducido
+Y_pred_reducido <- fitted(mypls_reducido)
+R2_reducido <- 1 - sum((Y - Y_pred_reducido)^2) / sum((Y - mean(Y))^2)
+
+cat("R2 completo:", round(R2_completo, 4), "\n")
+cat("R2 reducido:", round(R2_reducido, 4), "\n")
+
+```
+```{r, echo=FALSE}
+rmse <- function(obs, pred) sqrt(mean((obs - pred)^2))
+
+rmse_completo <- rmse(Y, Y_pred_completo)
+rmse_reducido <- rmse(Y, Y_pred_reducido)
+
+cat("RMSE completo:", round(rmse_completo, 4), "\n")
+cat("RMSE reducido:", round(rmse_reducido, 4), "\n")
+
+```
+Para comprobar la efectividad del nuevo modelo, se va a comparar con el original para poder apreciar la diferencia, en caso de existir, en la capacidad predictiva.
+```{r, echo=FALSE}
+library(ggplot2)
+
+df_plot <- data.frame(
+  Real = as.numeric(Y),
+  Completo = as.numeric(Y_pred_completo),
+  Reducido = as.numeric(Y_pred_reducido)
+)
+
+ggplot(df_plot, aes(x = Real)) +
+  geom_point(aes(y = Completo, color = "Completo"), alpha = 0.7) +
+  geom_point(aes(y = Reducido, color = "Reducido"), alpha = 0.7) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  labs(title = "Comparación de predicciones: modelo completo vs reducido",
+       y = "Predicción",
+       color = "Modelo") +
+  theme_minimal()
+
+```
+
+En la gráfica se observa la dispersión de las predicciones frente a los valores reales para ambos modelos: el modelo completo (en rojo) y el modelo reducido (en azul), este último construido únicamente con las variables que resultaron significativas según los análisis de coeficientes y valores VIP.
+
+Ambos modelos muestran una tendencia positiva coherente respecto a la diagonal (línea de identidad), lo cual indica una capacidad predictiva aceptable. Luego, aunque el modelo reducido tiene una ligera pérdida de precisión (con un R² algo más bajo y un RMSE más alto que el modelo completo), gana en simplicidad y es mucho más fácil de interpretar. Usar solo las variables más relevantes puede ser útil, sobre todo si queremos entender mejor el modelo o si no siempre es posible recoger toda la información disponible. Por eso, aunque el modelo completo tiene mejor rendimiento, el modelo reducido con las variables seleccionadas por VIP también es una buena opción dependiendo del objetivo que tengamos.
